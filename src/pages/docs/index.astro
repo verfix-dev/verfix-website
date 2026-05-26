@@ -1,0 +1,355 @@
+---
+import MarketingLayout from '../../layouts/MarketingLayout.astro';
+---
+
+<MarketingLayout 
+  title="Verfix Documentation — Developer Hub"
+  description="Explore integration guides, configuration schemas, CLI references, and run styles for Verfix browser verification runtime."
+>
+  <main class="docs-hub-hero">
+    <div class="glow-bg" aria-hidden="true"></div>
+    
+    <div class="hub-container">
+      <!-- Header -->
+      <header class="hub-header">
+        <span class="hub-badge">DOCUMENTATION PORTAL</span>
+        <h1 class="hub-title">How can we help you build?</h1>
+        <p class="hub-subtitle">
+          Explore references, modes, and guides to integrate Verfix's browser verification runtime with your AI agents and development environments.
+        </p>
+      </header>
+
+      <!-- Quick Path / Featured -->
+      <section class="quick-path">
+        <div class="quick-card">
+          <div class="quick-card-body">
+            <span class="quick-label">GETTING STARTED</span>
+            <h2>New to Verfix? Let's install the CLI</h2>
+            <p>Set up the runtime locally, verify your Docker environment, and run your first browser verification flow in under 5 minutes.</p>
+          </div>
+          <a href="/getting-started" class="quick-card-action">
+            Start Setup
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </a>
+        </div>
+      </section>
+
+      <!-- Grid Sections -->
+      <section class="hub-grid">
+        <!-- Section: References -->
+        <div class="hub-section-col">
+          <div class="section-heading">
+            <svg class="heading-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <h2>API & References</h2>
+          </div>
+          <div class="cards-stack">
+            <a href="/cli-reference" class="hub-card">
+              <h3>CLI Reference</h3>
+              <p>Command reference manual for managing servers, initiating runs, and reviewing execution flows via standard shell scripts.</p>
+              <span class="card-link">Read CLI guide →</span>
+            </a>
+            <a href="/config-reference" class="hub-card">
+              <h3>Config Reference</h3>
+              <p>Complete configuration parameters for `verfix.config.json` including timeout settings, flow parameters, and system schemas.</p>
+              <span class="card-link">See config specs →</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Section: Architecture & Core -->
+        <div class="hub-section-col">
+          <div class="section-heading">
+            <svg class="heading-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="9" y1="3" x2="9" y2="21"></line>
+              <line x1="15" y1="3" x2="15" y2="21"></line>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="3" y1="15" x2="21" y2="15"></line>
+            </svg>
+            <h2>Concepts & Architecture</h2>
+          </div>
+          <div class="cards-stack">
+            <a href="/execution-modes" class="hub-card">
+              <h3>Execution Modes</h3>
+              <p>Learn the behaviors, guarantees, and trade-offs of the Strict, Assisted, and Exploratory execution strategies.</p>
+              <span class="card-link">Understand run styles →</span>
+            </a>
+            <a href="/failure-taxonomy" class="hub-card">
+              <h3>Failure Taxonomy</h3>
+              <p>Explore the full categorization of failure types, including visibility issues, selector errors, and structured hint layouts.</p>
+              <span class="card-link">View taxomony schema →</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Section: Guides -->
+        <div class="hub-section-col">
+          <div class="section-heading">
+            <svg class="heading-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+            </svg>
+            <h2>Developer Guides</h2>
+          </div>
+          <div class="cards-stack">
+            <a href="/agent-integration" class="hub-card">
+              <h3>Agent Integration</h3>
+              <p>Step-by-step guides for connecting Verfix structured JSON feedback into LLM architectures, AutoGen, and LangChain environments.</p>
+              <span class="card-link">Connect AI Agents →</span>
+            </a>
+            <a href="/self-hosting" class="hub-card">
+              <h3>Self-Hosting Guide</h3>
+              <p>Deploy the Verfix runtime to private cloud infra, manage persistent storage layers, and configure customized server parameters.</p>
+              <span class="card-link">Deploy to private servers →</span>
+            </a>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</MarketingLayout>
+
+<style>
+  .docs-hub-hero {
+    position: relative;
+    background: var(--vf-bg);
+    min-height: 100vh;
+    padding: 120px 2rem 6rem;
+    overflow: hidden;
+  }
+
+  .glow-bg {
+    position: absolute;
+    top: -10%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(0, 217, 126, 0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .hub-container {
+    position: relative;
+    max-width: 1100px;
+    margin: 0 auto;
+    z-index: 2;
+  }
+
+  .hub-header {
+    text-align: center;
+    max-width: 680px;
+    margin: 0 auto 4rem;
+  }
+
+  .hub-badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    color: var(--vf-green);
+    background: rgba(0, 217, 126, 0.08);
+    border: 1px solid rgba(0, 217, 126, 0.2);
+    padding: 4px 10px;
+    border-radius: 100px;
+    letter-spacing: 0.08em;
+    margin-bottom: 1.25rem;
+  }
+
+  .hub-title {
+    font-size: clamp(2rem, 3.5vw, 2.75rem);
+    font-weight: 800;
+    color: var(--vf-text);
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+
+  .hub-subtitle {
+    font-size: 1rem;
+    color: var(--vf-text-secondary);
+    line-height: 1.6;
+  }
+
+  /* Featured Quick Card */
+  .quick-path {
+    margin-bottom: 4rem;
+  }
+
+  .quick-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(to right, var(--vf-surface), rgba(17, 17, 19, 0.4));
+    border: 1px solid var(--vf-border);
+    border-radius: 12px;
+    padding: 2.25rem;
+    gap: 2rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .quick-card:hover {
+    border-color: rgba(0, 217, 126, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+
+  .quick-card-body {
+    max-width: 640px;
+  }
+
+  .quick-label {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    color: var(--vf-green);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+  }
+
+  .quick-card-body h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--vf-text);
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  .quick-card-body p {
+    font-size: 0.875rem;
+    color: var(--vf-text-secondary);
+    line-height: 1.55;
+  }
+
+  .quick-card-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--vf-green);
+    color: #000;
+    text-decoration: none;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 6px;
+    white-space: nowrap;
+    transition: opacity 0.15s ease;
+  }
+
+  .quick-card-action:hover {
+    opacity: 0.9;
+  }
+
+  /* Grid Stack */
+  .hub-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+
+  .hub-section-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    height: 100%;
+  }
+
+  .section-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--vf-text);
+    padding-bottom: 4px;
+  }
+
+  .heading-icon {
+    color: var(--vf-text-tertiary);
+  }
+
+  .section-heading h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .cards-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    flex-grow: 1;
+  }
+
+  .hub-card {
+    background: var(--vf-surface);
+    border: 1px solid var(--vf-border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .hub-card h3 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--vf-text);
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.01em;
+  }
+
+  .hub-card p {
+    font-size: 0.8125rem;
+    color: var(--vf-text-secondary);
+    line-height: 1.5;
+    margin-bottom: 1.25rem;
+    flex-grow: 1;
+  }
+
+  .card-link {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--vf-green);
+    transition: color 0.15s ease;
+  }
+
+  .hub-card:hover {
+    border-color: rgba(0, 217, 126, 0.25);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  .hub-card:hover .card-link {
+    color: var(--vf-text);
+  }
+
+  /* Responsive styling */
+  @media (max-width: 960px) {
+    .hub-grid {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+    .quick-card {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 1.75rem;
+    }
+    .quick-card-action {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .docs-hub-hero {
+      padding: 96px 1.25rem 4rem;
+    }
+    .hub-header {
+      margin-bottom: 2.5rem;
+    }
+  }
+</style>

@@ -1,0 +1,56 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0A0A0B"/>
+      <stop offset="100%" style="stop-color:#111113"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00D97E;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#00D97E;stop-opacity:0"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Grid lines -->
+  <line x1="0" y1="315" x2="1200" y2="315" stroke="#2A2A2E" stroke-width="1" opacity="0.5"/>
+  <line x1="600" y1="0" x2="600" y2="630" stroke="#2A2A2E" stroke-width="1" opacity="0.3"/>
+  <!-- Glow accent -->
+  <rect x="0" y="0" width="600" height="630" fill="url(#glow)" opacity="0.4"/>
+  <!-- Border -->
+  <rect x="40" y="40" width="1120" height="550" rx="16" fill="none" stroke="#2A2A2E" stroke-width="1.5"/>
+  <!-- Logo mark -->
+  <rect x="80" y="80" width="52" height="52" rx="10" fill="#00D97E" fill-opacity="0.12" stroke="#00D97E" stroke-width="1.5"/>
+  <path d="M95 106l10 10 22-22" stroke="#00D97E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Wordmark -->
+  <text x="148" y="116" font-family="'Geist', system-ui, sans-serif" font-size="32" font-weight="700" fill="#F0F0F2" letter-spacing="-1">verfix</text>
+  <!-- Badge -->
+  <rect x="80" y="160" width="148" height="28" rx="14" fill="#00D97E" fill-opacity="0.1" stroke="#00D97E" stroke-opacity="0.3" stroke-width="1"/>
+  <text x="154" y="179" font-family="'JetBrains Mono', monospace" font-size="12" fill="#00D97E" text-anchor="middle" font-weight="500">v0.1.4 · npm</text>
+  <!-- Main headline -->
+  <text x="80" y="280" font-family="'Geist', system-ui, sans-serif" font-size="64" font-weight="800" fill="#F0F0F2" letter-spacing="-2">Browser verification</text>
+  <text x="80" y="356" font-family="'Geist', system-ui, sans-serif" font-size="64" font-weight="800" letter-spacing="-2">
+    <tspan fill="#F0F0F2">for </tspan><tspan fill="#00D97E">AI-generated</tspan>
+  </text>
+  <text x="80" y="432" font-family="'Geist', system-ui, sans-serif" font-size="64" font-weight="800" fill="#F0F0F2" letter-spacing="-2">web apps</text>
+  <!-- Subline -->
+  <text x="80" y="510" font-family="'Geist', system-ui, sans-serif" font-size="24" fill="#8A8A95">Structured JSON for agents. Execution timeline for humans.</text>
+  <!-- Terminal snippet (right side) -->
+  <rect x="700" y="200" width="460" height="200" rx="10" fill="#0D0D0F" stroke="#2A2A2E" stroke-width="1"/>
+  <rect x="700" y="200" width="460" height="32" rx="10" fill="#1A1A1D"/>
+  <rect x="700" y="220" width="460" height="12" fill="#1A1A1D"/>
+  <circle cx="720" cy="216" r="5" fill="#FF5F57"/>
+  <circle cx="736" cy="216" r="5" fill="#FEBC2E"/>
+  <circle cx="752" cy="216" r="5" fill="#28C840"/>
+  <text x="718" y="260" font-family="'JetBrains Mono', monospace" font-size="13" fill="#00D97E">$</text>
+  <text x="730" y="260" font-family="'JetBrains Mono', monospace" font-size="13" fill="#F0F0F2"> verfix run --flow login</text>
+  <text x="718" y="285" font-family="'JetBrains Mono', monospace" font-size="13" fill="#F0F0F2">{</text>
+  <text x="730" y="305" font-family="'JetBrains Mono', monospace" font-size="13" fill="#4A9EFF">  "passed"</text>
+  <text x="805" y="305" font-family="'JetBrains Mono', monospace" font-size="13" fill="#F0F0F2">: </text>
+  <text x="816" y="305" font-family="'JetBrains Mono', monospace" font-size="13" fill="#FF4444">false</text>
+  <text x="848" y="305" font-family="'JetBrains Mono', monospace" font-size="13" fill="#F0F0F2">,</text>
+  <text x="730" y="325" font-family="'JetBrains Mono', monospace" font-size="13" fill="#4A9EFF">  "exit_code"</text>
+  <text x="820" y="325" font-family="'JetBrains Mono', monospace" font-size="13" fill="#FF4444">: 1</text>
+  <text x="718" y="345" font-family="'JetBrains Mono', monospace" font-size="13" fill="#F0F0F2">}</text>
+  <!-- Domain -->
+  <text x="1120" y="560" font-family="'JetBrains Mono', monospace" font-size="14" fill="#55555F" text-anchor="end">verfix.dev</text>
+</svg>

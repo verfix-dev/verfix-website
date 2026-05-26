@@ -1,0 +1,175 @@
+---
+title: Getting Started
+description: Install Verfix, run verfix init, and verify your first browser flow in under 5 minutes.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+- **Docker Desktop** — [download here](https://www.docker.com/products/docker-desktop/). Must be running before you use Verfix.
+- **Node.js 18+** — `node --version` to check.
+
+---
+
+## Install the CLI
+
+```bash
+npm install -g verfix
+```
+
+Or use it without installing globally:
+
+```bash
+npx verfix init
+```
+
+Verify the installation:
+
+```bash
+verfix --version
+```
+
+---
+
+## Start the runtime
+
+The Verfix runtime is a Docker container that runs Playwright workers, a Go API, PostgreSQL, and Redis. The CLI manages its lifecycle.
+
+```bash
+verfix start
+```
+
+On first run, this pulls `ghcr.io/verfix-dev/verfix-server:latest` (~2 min on a fast connection). Subsequent starts are instant.
+
+When healthy, you'll see:
+
+```
+✓ Verfix runtime is running
+    API:       http://localhost:3611
+    Dashboard: http://localhost:3610
+```
+
+<Aside type="note">
+Ports 3610 and 3611 are the defaults. If occupied, Verfix automatically tries the next pair (3612/3613, 3614/3615, ...). Resolved ports persist in `.verfix/runtime.json`.
+</Aside>
+
+---
+
+## Init your project
+
+Run this inside your web app's directory:
+
+```bash
+cd your-react-app
+verfix init
+```
+
+The interactive wizard will:
+
+1. Confirm Docker is running and pull the image if needed
+2. Ask for your app's **base URL** (e.g. `http://localhost:3000`)
+3. Ask which **mode** to use (`strict`, `assisted`, or `exploratory`)
+4. Ask which **flows** to scaffold (login, dashboard-load, signup, checkout)
+5. Ask for your **AI API key** (required for Assisted/Exploratory mode)
+6. Write `verfix.config.json` in your project root
+7. Generate or update `AGENTS.md` so coding agents know how to use Verfix
+
+---
+
+## Run your first flow
+
+```bash
+verfix run --flow login --output json
+```
+
+Example output on **pass**:
+
+```json
+{
+  "passed": true,
+  "failures": [],
+  "timeline_url": "http://localhost:3610/?executionId=exec_abc123",
+  "exit_code": 0,
+  "execution_id": "exec_abc123"
+}
+```
+
+Example output on **failure**:
+
+```json
+{
+  "passed": false,
+  "failures": [
+    {
+      "type": "selector_not_found",
+      "selector": "[data-testid=submit]",
+      "detail": "Selector not found after 15000ms",
+      "fix_hint": "Selector \"[data-testid=submit]\" not found in DOM. Add a stable data-testid or update the selector."
+    }
+  ],
+  "timeline_url": "http://localhost:3610/?executionId=exec_xyz789",
+  "exit_code": 1,
+  "execution_id": "exec_xyz789"
+}
+```
+
+The CLI exits with code `0` on pass and `1` on failure — CI-friendly by default.
+
+---
+
+## Open the execution timeline
+
+Copy the `timeline_url` from the JSON output and open it in your browser:
+
+```
+http://localhost:3610/?executionId=exec_abc123
+```
+
+The timeline shows:
+- Every browser action (click, type, navigate)
+- All assertion results with pass/fail status and duration
+- Console logs (errors highlighted)
+- Network requests with status codes
+- Screenshots on failure
+- Playwright trace artifacts
+
+---
+
+## List all flows
+
+```bash
+verfix flows
+```
+
+Run all flows at once:
+
+```bash
+verfix run --output json
+```
+
+---
+
+## Check runtime health
+
+```bash
+verfix doctor
+```
+
+Runs seven diagnostic checks:
+- Docker installed
+- Docker daemon running
+- Container running
+- API healthy
+- Dashboard reachable
+- `verfix.config.json` found
+- `AGENTS.md` found
+
+---
+
+## Next steps
+
+- [CLI Reference](/cli-reference/) — all commands and flags
+- [Config Reference](/config-reference/) — every field in `verfix.config.json`
+- [Agent Integration](/agent-integration/) — wiring Verfix into agent workflows
+- [Execution Modes](/execution-modes/) — when to use strict vs. assisted

@@ -1,0 +1,78 @@
+---
+export interface Props {
+  text: string;
+  label?: string;
+  class?: string;
+  variant?: 'inline' | 'icon';
+}
+
+const { text, label = 'Copy', class: cls = '', variant = 'inline' } = Astro.props;
+const encodedText = JSON.stringify(text);
+---
+
+<button
+  class:list={['copy-btn', cls, { 'copy-icon-only': variant === 'icon' }]}
+  data-copy={text}
+  aria-label={`Copy to clipboard: ${label}`}
+  type="button"
+>
+  <svg
+    class="copy-icon"
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    aria-hidden="true"
+  >
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+  </svg>
+  {variant === 'inline' && <span class="copy-label">{label}</span>}
+</button>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('button[data-copy]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const text = btn.dataset.copy ?? '';
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        // Fallback for non-secure contexts
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+
+      const label = btn.querySelector<HTMLElement>('.copy-label');
+      const icon  = btn.querySelector<SVGElement>('.copy-icon');
+
+      if (icon) {
+        icon.innerHTML = '<path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/>';
+        icon.style.stroke = 'var(--vf-green)';
+      }
+      if (label) label.textContent = 'Copied!';
+
+      btn.setAttribute('aria-label', 'Copied!');
+
+      setTimeout(() => {
+        if (icon) {
+          icon.innerHTML = '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>';
+          icon.style.stroke = '';
+        }
+        if (label) label.textContent = btn.dataset.copyLabel ?? 'Copy';
+        btn.setAttribute('aria-label', `Copy to clipboard: ${btn.dataset.copyLabel ?? ''}`);
+      }, 2000);
+    });
+
+    // Store original label
+    const label = btn.querySelector<HTMLElement>('.copy-label');
+    if (label) btn.dataset.copyLabel = label.textContent ?? 'Copy';
+  });
+</script>

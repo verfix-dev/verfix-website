@@ -1,0 +1,278 @@
+---
+title: CLI Reference
+description: Complete reference for every verfix CLI command and flag. Derived from cli/src/index.ts.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The `verfix` CLI manages the runtime lifecycle and runs browser verification jobs. Install it with:
+
+```bash
+npm install -g verfix
+```
+
+All commands can also be run with `npx verfix <command>`.
+
+---
+
+## verfix init
+
+**Interactive setup wizard** — configures the runtime, scaffolds flows, and generates `AGENTS.md`.
+
+```bash
+verfix init
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-f, --force` | Overwrite existing files without prompting |
+
+**What it does (step by step):**
+
+1. Checks Docker is installed and running
+2. Pulls `ghcr.io/verfix-dev/verfix-server:latest` if not already present
+3. Starts the runtime container
+4. Prompts for your app's **base URL**
+5. Prompts for the default **verification mode** (`strict`, `assisted`, `exploratory`)
+6. Prompts for which **flows** to scaffold from the preset library
+7. Prompts for your **AI API key** (required for Assisted/Exploratory)
+8. Writes `verfix.config.json` in the current directory
+9. Generates or updates `AGENTS.md`
+
+---
+
+## verfix start
+
+**Starts the Verfix runtime container.**
+
+```bash
+verfix start
+```
+
+Pulls the Docker image if missing, starts the container, and waits for the health check to pass. Prints the API and Dashboard URLs on success.
+
+If the runtime is already running, it reports the current ports without restarting.
+
+---
+
+## verfix stop
+
+**Stops the Verfix runtime container.**
+
+```bash
+verfix stop
+```
+
+Stops and removes the running container. Data is preserved in Docker volumes (`verfix-data`, `verfix-artifacts`).
+
+---
+
+## verfix status
+
+**Checks runtime, API, and dashboard health.**
+
+```bash
+verfix status [executionId]
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `[executionId]` | Optional. If provided, fetches and displays the status of a specific execution. |
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-o, --output <format>` | Output format: `pretty` \| `json`. Default: `pretty` |
+
+Without an `executionId`, prints:
+- Container status (running / not found)
+- API health (healthy / unreachable)
+- Dashboard health (healthy / unreachable)
+- Docker image name
+- Container uptime
+
+With an `executionId`:
+- Execution ID
+- Status (`queued`, `running`, `completed`, `failed`)
+- Duration in milliseconds
+
+---
+
+## verfix logs
+
+**Tails the runtime container logs.**
+
+```bash
+verfix logs
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--tail <n>` | Number of lines to show. Default: `50` |
+
+---
+
+## verfix update
+
+**Pulls the latest runtime image and restarts the container.**
+
+```bash
+verfix update
+```
+
+1. Pulls `ghcr.io/verfix-dev/verfix-server:latest`
+2. Stops the existing container
+3. Starts the updated container
+4. Waits for health check
+
+---
+
+## verfix doctor
+
+**Runs diagnostic checks on the Verfix setup.**
+
+```bash
+verfix doctor
+```
+
+Checks (in order):
+1. Docker installed
+2. Docker daemon running
+3. Container running
+4. API reachable at health endpoint
+5. Dashboard reachable
+6. `verfix.config.json` exists in current directory
+7. `AGENTS.md` exists in current directory
+
+Exits with code equal to the number of failed checks. Exit code `0` means all checks passed.
+
+---
+
+## verfix flows
+
+**Lists all flows defined in `verfix.config.json`.**
+
+```bash
+verfix flows
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-c, --config <file>` | Path to config file. Default: `./verfix.config.json` |
+| `-o, --output <format>` | Output format: `pretty` \| `json`. Default: `pretty` |
+
+**JSON output shape:**
+
+```json
+{
+  "flows": [
+    { "id": "login", "steps": 4, "assertions": 2 },
+    { "id": "dashboard-load", "steps": 1, "assertions": 3 }
+  ],
+  "total": 2
+}
+```
+
+---
+
+## verfix run
+
+**Runs a verification job.**
+
+```bash
+verfix run [options]
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-u, --url <url>` | Target URL to verify |
+| `-t, --task <task>` | Task description (used in dashboard) |
+| `-c, --config <file>` | Path to `verfix.config.json`. Default: `./verfix.config.json` |
+| `-f, --flow <id>` | Flow ID or name to run |
+| `-m, --mode <mode>` | Verification mode: `strict` \| `assisted` \| `smoke` \| `exploratory` |
+| `-o, --output <format>` | Output format: `pretty` \| `json`. Default: `json` |
+| `--dashboard <url>` | Dashboard base URL for timeline links |
+| `--timeout <ms>` | Timeout in milliseconds. Default: `15000` |
+| `--retries <n>` | Number of retries on failure. Default: `2` |
+
+**JSON output contract:**
+
+```json
+{
+  "passed": false,
+  "failures": [
+    {
+      "type": "selector_not_found",
+      "selector": "[data-testid=submit]",
+      "detail": "Selector not found after 15000ms",
+      "fix_hint": "Selector \"[data-testid=submit]\" not found in DOM. Add a stable data-testid or update the selector."
+    }
+  ],
+  "timeline_url": "http://localhost:3610/?executionId=exec_abc123",
+  "exit_code": 1,
+  "execution_id": "exec_abc123",
+  "raw": { ... }
+}
+```
+
+**Exit codes:**
+- `0` — all assertions passed
+- `1` — one or more assertions failed or execution error
+
+<Aside type="tip">
+On Mac/Windows, Verfix automatically rewrites `localhost` → `host.docker.internal` in the target URL so Playwright inside the container can reach your app.
+</Aside>
+
+**Examples:**
+
+```bash
+# Run a specific flow, JSON output
+verfix run --flow login --output json
+
+# Run all flows
+verfix run --output json
+
+# Run in exploratory mode with a natural language task
+verfix run --mode exploratory --task "verify the login page loads and shows a form" --output json
+
+# Run against a specific URL without a config file
+verfix run --url http://localhost:3000 --output json
+
+# Run with custom timeout and retries
+verfix run --flow checkout --timeout 30000 --retries 3 --output json
+```
+
+---
+
+## verfix list
+
+**Lists recent verification executions.**
+
+```bash
+verfix list
+```
+
+Shows the last N executions from the API, with status icons, execution IDs, tasks, and URLs.
+
+---
+
+## Global flags
+
+All commands support:
+
+```bash
+verfix --version    # Print CLI version
+verfix --help       # Print help for any command
+verfix <cmd> --help # Print help for a specific command
+```

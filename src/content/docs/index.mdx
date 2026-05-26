@@ -1,0 +1,40 @@
+---
+title: Verfix Documentation
+description: Browser verification runtime for AI-generated web apps. Run deterministic browser flows, assert UI state, and get structured failure reports.
+template: splash
+hero:
+  tagline: Local-first browser verification runtime for AI coding agents.
+  actions:
+    - text: Get Started
+      link: /getting-started/
+      icon: right-arrow
+    - text: CLI Reference
+      link: /cli-reference/
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Documentation
+
+<CardGrid stagger>
+  <Card title="Getting Started" icon="rocket">
+    Install Verfix, run `verfix init`, and verify your first flow in under 5 minutes. [Start here →](/getting-started/)
+  </Card>
+  <Card title="CLI Reference" icon="seti:powershell">
+    Every command, flag, and option — `init`, `run`, `start`, `stop`, `doctor`, and more. [View CLI →](/cli-reference/)
+  </Card>
+  <Card title="Agent Integration" icon="puzzle">
+    How AI coding agents consume Verfix output, the retry loop pattern, and the full output contract. [Read guide →](/agent-integration/)
+  </Card>
+  <Card title="Config Reference" icon="document">
+    Every field in `verfix.config.json` — flows, steps, assertions, modes. [View schema →](/config-reference/)
+  </Card>
+  <Card title="Execution Modes" icon="setting">
+    Strict, Assisted, and Exploratory — when to use each and how they work internally. [Learn more →](/execution-modes/)
+  </Card>
+  <Card title="Failure Taxonomy" icon="warning">
+    Every `FailureType` with causes, `fix_hint` descriptions, and how to fix them in code. [View types →](/failure-taxonomy/)
+  </Card>
+</CardGrid>

@@ -1,0 +1,108 @@
+# Verfix
+> Browser verification runtime for AI-generated web apps
+
+Verfix enables AI coding agents to verify real browser behavior after making UI changes.
+Agents get structured JSON output with typed failure classifications and actionable fix hints.
+Humans get an execution timeline with full observability.
+
+## Install
+npm install -g verfix
+# or use without installing:
+npx verfix init
+
+## Quickstart
+verfix init                                    # interactive setup wizard
+verfix start                                   # start the Docker runtime
+verfix flows                                   # list available flows
+verfix run --flow <id> --output json           # run a specific flow
+verfix run --output json                       # run all flows
+verfix stop                                    # stop the runtime
+
+## Output contract
+{
+  "passed": boolean,
+  "failures": [
+    {
+      "type": FailureType,
+      "selector": string | undefined,
+      "detail": string | undefined,
+      "fix_hint": string
+    }
+  ],
+  "timeline_url": string,
+  "exit_code": 0 | 1,
+  "execution_id": string
+}
+
+## Failure types (FailureType union)
+- selector_not_found    — CSS/testId selector matched zero elements in DOM
+- selector_not_visible  — Element exists but is hidden (display:none, visibility:hidden, zero size)
+- text_mismatch         — Expected text was not found on the page
+- url_mismatch          — Current URL does not contain the expected substring
+- console_error         — One or more console.error() calls were detected
+- network_failure       — A required network request returned non-2xx status
+- timeout               — An operation exceeded the configured timeout
+- assertion_failed      — Generic fallback; check fix_hint for details
+
+## Assertion types
+- page_loaded           — Page loaded without navigation error
+- selector_visible      — Element is present and visible
+- text_visible          — Text string appears on page
+- url_contains          — Current URL contains substring
+- title_contains        — Page title contains substring
+- no_console_errors     — No console.error() calls during flow
+- network_request_success — Network request to URL pattern returned 2xx
+
+## Execution modes
+- strict      — Deterministic, no AI. Best for CI/CD.
+- assisted    — Strict first, semantic + AI fallback if selector breaks. Best for active development.
+- exploratory — Natural language task, AI navigates. Not CI-grade.
+
+## When to use Verfix
+After editing React components, forms, routes, buttons, or any UI code that affects user flows.
+
+## Config file (verfix.config.json)
+{
+  "baseUrl": "http://localhost:3000",
+  "mode": "assisted",
+  "flows": [
+    {
+      "id": "login",
+      "steps": [
+        { "action": "navigate", "url": "/login" },
+        { "action": "type", "selector": "[data-testid=email]", "value": "test@example.com" },
+        { "action": "type", "selector": "[data-testid=password]", "value": "password123" },
+        { "action": "click", "selector": "[data-testid=submit]" }
+      ],
+      "assertions": [
+        { "type": "url_contains", "value": "/dashboard" },
+        { "type": "no_console_errors" }
+      ]
+    }
+  ]
+}
+
+## Agent retry loop (pseudocode)
+for attempt in range(maxRetries):
+    result = run("verfix run --flow login --output json")
+    if result.passed:
+        break
+    for failure in result.failures:
+        apply_fix(failure.fix_hint)
+else:
+    open_timeline(result.timeline_url)  # surface to human
+
+## Requirements
+- Docker Desktop (running)
+- Node.js 18+
+
+## Runtime defaults
+- Dashboard: http://localhost:3610
+- API: http://localhost:3611
+- Ports auto-increment if occupied (3612/3613, 3614/3615, ...)
+
+## Docs
+https://verfix.dev/docs
+
+## Source
+https://github.com/verfix-dev/verfix

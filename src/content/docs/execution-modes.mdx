@@ -1,0 +1,204 @@
+---
+title: Execution Modes
+description: Strict, Assisted, and Exploratory — when to use each mode and how they work internally.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Verfix has three execution modes. The global mode is set in `verfix.config.json` and can be overridden per-flow.
+
+| Mode | Selector strategy | AI usage | Reliability | Best for |
+|------|------------------|----------|-------------|----------|
+| **strict** | `data-testid` → CSS only | None | ★★★★★ | CI/CD, regression |
+| **assisted** | `data-testid` → semantic → AI fallback | Recovery only | ★★★★☆ | Active development |
+| **exploratory** | AI-planned | Core driver | ★★☆☆☆ | Discovery, ad-hoc QA |
+
+---
+
+## Strict
+
+**Fully deterministic. No AI. Fail explicitly.**
+
+In strict mode, the runtime executes exactly what is declared in your flow steps using CSS selectors and `data-testid` attributes. If a selector is not found, the step fails immediately with `selector_not_found`. There is no fallback, no retry with a different strategy.
+
+### When to use
+
+- CI/CD pipelines and merge gates
+- Regression testing on stable flows
+- Flows where you need guaranteed, repeatable results
+- Any context where ambiguity is unacceptable
+
+### How it works
+
+```
+Step: click [data-testid=submit]
+  → Playwright locates element by CSS selector
+  → If found and visible: action succeeds
+  → If not found: immediate FailureType = "selector_not_found"
+  → No AI, no semantic fallback
+```
+
+### Example config
+
+```json
+{
+  "baseUrl": "http://localhost:3000",
+  "mode": "strict",
+  "flows": [
+    {
+      "id": "login",
+      "steps": [
+        { "action": "navigate", "url": "/login" },
+        { "action": "type", "selector": "[data-testid=email]", "value": "test@example.com" },
+        { "action": "type", "selector": "[data-testid=password]", "value": "password123" },
+        { "action": "click", "selector": "[data-testid=submit]" }
+      ],
+      "assertions": [
+        { "type": "url_contains", "value": "/dashboard" },
+        { "type": "no_console_errors" }
+      ]
+    }
+  ]
+}
+```
+
+### Example output (failure)
+
+```json
+{
+  "passed": false,
+  "failures": [
+    {
+      "type": "selector_not_found",
+      "selector": "[data-testid=submit]",
+      "fix_hint": "Selector \"[data-testid=submit]\" not found in DOM. Add a stable data-testid or update the selector."
+    }
+  ],
+  "exit_code": 1
+}
+```
+
+---
+
+## Assisted
+
+**Deterministic first. AI fallback when selectors break.**
+
+Assisted mode runs the same deterministic logic as strict, but adds a recovery chain when a selector fails. Before declaring failure, it tries progressively less-precise strategies.
+
+### Recovery chain
+
+```
+Attempt 1 — Exact selector (data-testid, CSS)
+  ↓ fails
+Attempt 2 — Semantic discovery (aria-label, role, text content)
+  ↓ fails
+Attempt 3 — AI fallback (LLM analyzes DOM snapshot, suggests alternative)
+  ↓ fails
+FAIL — all three attempts logged in assertion result
+```
+
+Each attempt is recorded with timing in the assertion `details`. Healing only activates in `assisted` mode — it never fires in `strict`.
+
+### When to use
+
+- Active development where selectors are still changing
+- Flows that involve components you don't fully control
+- New flows being defined for the first time
+- Recommended default during agent-driven development
+
+<Aside type="note">
+`assisted` is the recommended default mode during agent-driven development. Agents can verify flows even while the UI is actively changing.
+</Aside>
+
+### Example config
+
+```json
+{
+  "baseUrl": "http://localhost:3000",
+  "mode": "assisted",
+  "flows": [
+    {
+      "id": "checkout",
+      "steps": [
+        { "action": "navigate", "url": "/checkout" },
+        { "action": "type", "selector": "[data-testid=card-number]", "value": "4242424242424242" },
+        { "action": "click", "selector": "[data-testid=pay-button]" }
+      ],
+      "assertions": [
+        { "type": "text_visible", "value": "Order confirmed" },
+        { "type": "no_console_errors" }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## Exploratory
+
+**Natural language task. AI navigates autonomously.**
+
+In exploratory mode, you provide a natural language task instead of structured steps. The AI generates a step-by-step plan from the page context, executes it, and adapts if steps fail.
+
+Exploratory is fundamentally different from the other modes — it is optimized for **discovery and flexibility**, not production reliability.
+
+<Aside type="caution">
+Results in exploratory mode are clearly marked as `"mode": "exploratory"` in output. They are not CI-grade. Do not use exploratory mode as a merge gate.
+</Aside>
+
+### When to use
+
+- Discovering what flows exist in an unfamiliar app
+- Ad-hoc QA on new features
+- Generating initial flow definitions to refine into strict flows
+- Natural language verification tasks without known selectors
+
+### Example CLI usage
+
+```bash
+verfix run --mode exploratory \
+  --task "verify the login page loads and shows a form with email and password fields" \
+  --output json
+```
+
+### Example output
+
+```json
+{
+  "passed": true,
+  "failures": [],
+  "timeline_url": "http://localhost:3610/?executionId=exec_xyz789",
+  "exit_code": 0,
+  "execution_id": "exec_xyz789"
+}
+```
+
+---
+
+## Mixing modes per-flow
+
+Each flow can override the global mode. This lets stable flows run in strict while new flows use assisted:
+
+```json
+{
+  "baseUrl": "http://localhost:3000",
+  "mode": "assisted",
+  "flows": [
+    {
+      "id": "login",
+      "mode": "strict",
+      "steps": [ ... ],
+      "assertions": [ ... ]
+    },
+    {
+      "id": "new-onboarding-flow",
+      "steps": [ ... ],
+      "assertions": [ ... ]
+    }
+  ]
+}
+```
+
+In this example, `login` runs in `strict` mode (overrides global), and `new-onboarding-flow` inherits `assisted` from the global setting.

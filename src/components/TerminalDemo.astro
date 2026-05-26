@@ -1,0 +1,227 @@
+---
+// Terminal demo with JS-driven looping animation
+---
+
+<div
+  class="terminal"
+  role="img"
+  aria-label="Animated terminal showing verfix init and verfix run commands with structured JSON output"
+>
+  <div class="terminal-header" aria-hidden="true">
+    <span class="dot dot-red"></span>
+    <span class="dot dot-yellow"></span>
+    <span class="dot dot-green"></span>
+    <span class="terminal-title">zsh — verfix</span>
+  </div>
+  <div class="terminal-body">
+    <div id="vf-term-lines" aria-live="off"></div>
+    <span class="terminal-cursor" id="vf-cursor" aria-hidden="true"></span>
+  </div>
+</div>
+
+<style>
+  .terminal {
+    background: var(--vf-terminal-bg);
+    border: 1px solid var(--vf-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(0, 217, 126, 0.04),
+      0 24px 64px rgba(0, 0, 0, 0.55);
+    position: relative;
+  }
+
+  .terminal::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.025) 2px,
+      rgba(0, 0, 0, 0.025) 4px
+    );
+    pointer-events: none;
+    border-radius: 12px;
+  }
+
+  .terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--vf-border);
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .dot-red    { background: #FF5F57; }
+  .dot-yellow { background: #FEBC2E; }
+  .dot-green  { background: #28C840; }
+
+  .terminal-title {
+    margin: 0 auto;
+    font-size: 0.6875rem;
+    color: var(--vf-text-tertiary);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .terminal-body {
+    padding: 1.25rem 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.8;
+    min-height: 360px;
+  }
+
+  .terminal-cursor {
+    display: inline-block;
+    width: 7px;
+    height: 13px;
+    background: var(--vf-green);
+    vertical-align: text-bottom;
+    margin-left: 1px;
+    opacity: 0;
+  }
+
+  /* Line colors — not scoped so JS-created elements pick them up */
+</style>
+
+<style is:global>
+  .vf-tl {
+    display: block;
+    opacity: 0;
+    transform: translateY(3px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+  }
+  .vf-tl.vf-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .vf-tl-blank {
+    display: block;
+    height: 0.45em;
+  }
+
+  /* Token colours */
+  .vf-t-prompt  { color: var(--vf-green); }
+  .vf-t-cmd     { color: var(--vf-text); }
+  .vf-t-ok      { color: var(--vf-green); }
+  .vf-t-q       { color: var(--vf-amber); }
+  .vf-t-ans     { color: var(--vf-text-secondary); }
+  .vf-t-key     { color: var(--vf-blue); }
+  .vf-t-str     { color: var(--vf-amber); }
+  .vf-t-true    { color: var(--vf-green); }
+  .vf-t-false   { color: var(--vf-red); }
+  .vf-t-num-bad { color: var(--vf-red); }
+  .vf-t-dim     { color: var(--vf-text-secondary); }
+  .vf-t-bracket { color: var(--vf-text); }
+
+  @keyframes vf-cursor-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+  .vf-cursor-blink {
+    animation: vf-cursor-blink 1s step-end infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vf-tl { transition: none !important; }
+    .vf-cursor-blink { animation: none !important; opacity: 1; }
+  }
+</style>
+
+<script>
+  interface TermLine {
+    html: string;
+    blank?: boolean;
+    delay: number;
+  }
+
+  const LINES: TermLine[] = [
+    { html: '<span class="vf-t-prompt">$</span> <span class="vf-t-cmd">verfix init</span>', delay: 350 },
+    { html: '', blank: true, delay: 200 },
+    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Docker running</span>', delay: 420 },
+    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Pulling ghcr.io/verfix-dev/verfix-server:latest</span>', delay: 520 },
+    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Runtime started</span>', delay: 360 },
+    { html: '', blank: true, delay: 200 },
+    { html: '<span class="vf-t-q">?</span> <span class="vf-t-ans">Base URL: http://localhost:3000</span>', delay: 400 },
+    { html: '<span class="vf-t-q">?</span> <span class="vf-t-ans">Mode: assisted (recommended)</span>', delay: 320 },
+    { html: '<span class="vf-t-q">?</span> <span class="vf-t-ans">Flows: login, dashboard-load</span>', delay: 320 },
+    { html: '', blank: true, delay: 200 },
+    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Created verfix.config.json</span>', delay: 360 },
+    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Updated AGENTS.md</span>', delay: 360 },
+    { html: '', blank: true, delay: 450 },
+    { html: '<span class="vf-t-prompt">$</span> <span class="vf-t-cmd">verfix run --flow login --output json</span>', delay: 550 },
+    { html: '<span class="vf-t-bracket">{</span>', delay: 280 },
+    { html: '&nbsp;&nbsp;<span class="vf-t-key">"passed"</span><span class="vf-t-bracket">:</span> <span class="vf-t-false">false</span><span class="vf-t-bracket">,</span>', delay: 200 },
+    { html: '&nbsp;&nbsp;<span class="vf-t-key">"failures"</span><span class="vf-t-bracket">:</span> <span class="vf-t-bracket">[{</span>', delay: 200 },
+    { html: '&nbsp;&nbsp;&nbsp;&nbsp;<span class="vf-t-key">"type"</span><span class="vf-t-bracket">:</span> <span class="vf-t-str">"selector_not_found"</span><span class="vf-t-bracket">,</span>', delay: 200 },
+    { html: '&nbsp;&nbsp;&nbsp;&nbsp;<span class="vf-t-key">"fix_hint"</span><span class="vf-t-bracket">:</span> <span class="vf-t-str">"Add data-testid=\'submit\' to button"</span>', delay: 200 },
+    { html: '&nbsp;&nbsp;<span class="vf-t-bracket">}],</span>', delay: 200 },
+    { html: '&nbsp;&nbsp;<span class="vf-t-key">"exit_code"</span><span class="vf-t-bracket">:</span> <span class="vf-t-num-bad">1</span>', delay: 200 },
+    { html: '<span class="vf-t-bracket">}</span>', delay: 200 },
+  ];
+
+  function runTerminal() {
+    const container = document.getElementById('vf-term-lines');
+    const cursor = document.getElementById('vf-cursor');
+    if (!container || !cursor) return;
+
+    // Respect reduced motion — show all at once
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      LINES.forEach(({ html, blank }) => {
+        const el = document.createElement('span');
+        el.className = blank ? 'vf-tl-blank' : 'vf-tl vf-visible';
+        if (html) el.innerHTML = html;
+        container.appendChild(el);
+      });
+      cursor.classList.add('vf-cursor-blink');
+      return;
+    }
+
+    let index = 0;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    function showNext() {
+      if (index >= LINES.length) {
+        cursor.classList.add('vf-cursor-blink');
+        return;
+      }
+
+      const line = LINES[index++];
+
+      if (line.blank) {
+        const blank = document.createElement('span');
+        blank.className = 'vf-tl-blank';
+        container.appendChild(blank);
+        timeoutId = setTimeout(showNext, line.delay);
+        return;
+      }
+
+      const el = document.createElement('span');
+      el.className = 'vf-tl';
+      el.innerHTML = line.html;
+      container.appendChild(el);
+
+      // Trigger transition on next frame
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.classList.add('vf-visible');
+        });
+      });
+
+      timeoutId = setTimeout(showNext, line.delay);
+    }
+
+    showNext();
+  }
+
+  // Run after DOM is ready
+  document.addEventListener('DOMContentLoaded', runTerminal);
+</script>

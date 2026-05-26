@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/* ── Verfix Design System Tokens ────────────────────────────────────────── */
+/* These are CSS custom properties only — they don't apply any visual styles
+   unless a component explicitly references them. Docs pages are unaffected. */
+
+:root {
+  --vf-green: #00D97E;
+  --vf-red: #FF4444;
+  --vf-amber: #F5A623;
+  --vf-blue: #4A9EFF;
+
+  --vf-bg: #0A0A0B;
+  --vf-surface: #111113;
+  --vf-surface-2: #1A1A1D;
+  --vf-border: #2A2A2E;
+  --vf-border-subtle: #1E1E22;
+
+  --vf-text: #F0F0F2;
+  --vf-text-secondary: #8A8A95;
+  --vf-text-tertiary: #55555F;
+
+  --vf-terminal-bg: #0D0D0F;
+  --vf-terminal-border: #2A2A2E;
+}
+
+/* ── Base typography (font-family only, no colours) ─────────────────────── */
+
+html {
+  font-family: 'Geist', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code, pre, .mono {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ── Utility classes ─────────────────────────────────────────────────────── */
+
+.vf-gradient-text {
+  background: linear-gradient(135deg, var(--vf-green) 0%, #00a85f 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Keyframes (used by marketing page components) ──────────────────────── */
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

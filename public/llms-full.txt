@@ -1,0 +1,266 @@
+# Verfix — Full Reference
+> Browser verification runtime for AI-generated web apps
+> Version: 0.1.4
+> License: Apache 2.0
+> Docs: https://verfix.dev/docs
+> Source: https://github.com/verfix-dev/verfix
+
+---
+
+## What is Verfix?
+
+Verfix is a local-first browser verification runtime for AI coding agents. It gives agents
+a deterministic environment to verify that UI changes actually work in a real browser.
+
+Key properties:
+- Runs locally via Docker — no cloud required
+- Playwright-powered browser execution
+- Structured JSON output designed for agent consumption
+- Exit code 0 (pass) or 1 (fail) for CI integration
+- Execution timeline for human observability
+
+Architecture:
+CLI → API (Go/Fiber) → Redis queue → Playwright Workers → PostgreSQL → CLI output
+
+---
+
+## CLI Reference
+
+### verfix init
+Interactive setup wizard.
+- Checks Docker is installed and running
+- Pulls ghcr.io/verfix-dev/verfix-server:latest if missing
+- Prompts: base URL, mode, flows to scaffold, AI API key
+- Writes verfix.config.json
+- Generates AGENTS.md
+Options: --force (-f) — overwrite without prompting
+
+### verfix start
+Starts the runtime container.
+Pulls image if missing. Waits for health check.
+Prints API (http://localhost:3611) and Dashboard (http://localhost:3610) URLs.
+
+### verfix stop
+Stops and removes the running container. Data preserved in Docker volumes.
+
+### verfix status [executionId]
+Without executionId: shows container, API, and dashboard health.
+With executionId: shows execution status, passed/failed, duration.
+Options: --output pretty|json (default: pretty)
+
+### verfix logs
+Tails the runtime container logs.
+Options: --tail <n> (default: 50)
+
+### verfix update
+Pulls latest image and restarts the container.
+
+### verfix doctor
+Runs 7 diagnostic checks. Exits with count of failed checks.
+Checks: Docker installed, Docker daemon, container running, API healthy,
+dashboard reachable, verfix.config.json exists, AGENTS.md exists.
+
+### verfix flows
+Lists all flows defined in verfix.config.json.
+Options: --config <file>, --output pretty|json
+
+### verfix run
+Runs a verification job.
+Options:
+  --url <url>         Target URL
+  --task <task>       Task description
+  --config <file>     Config file (default: ./verfix.config.json)
+  --flow <id>         Flow ID to run
+  --mode <mode>       strict | assisted | smoke | exploratory
+  --output <format>   pretty | json (default: json)
+  --dashboard <url>   Dashboard base URL for timeline links
+  --timeout <ms>      Timeout in ms (default: 15000)
+  --retries <n>       Retries on failure (default: 2)
+
+Exit codes: 0 = passed, 1 = failed
+
+### verfix list
+Lists recent verification executions.
+
+---
+
+## Output Contract
+
+verfix run --output json returns:
+
+{
+  "passed": boolean,
+  "failures": [
+    {
+      "type": "selector_not_found" | "selector_not_visible" | "text_mismatch" |
+               "url_mismatch" | "console_error" | "network_failure" |
+               "timeout" | "assertion_failed",
+      "selector": string | undefined,
+      "detail": string | undefined,
+      "fix_hint": string
+    }
+  ],
+  "timeline_url": "http://localhost:3610/?executionId=exec_xxx",
+  "exit_code": 0 | 1,
+  "execution_id": "exec_xxx",
+  "raw": { /* full ExecutionResult */ }
+}
+
+---
+
+## Failure Taxonomy
+
+selector_not_found
+  - Meaning: CSS/testId selector matched zero elements in DOM
+  - Fix: Add data-testid attribute to the element; add wait_for_selector step
+
+selector_not_visible
+  - Meaning: Element exists but is hidden (display:none, visibility:hidden, zero size)
+  - Fix: Check conditional rendering; ensure trigger step runs before assertion
+
+text_mismatch
+  - Meaning: Expected text was not found on the page
+  - Fix: Update assertion value; add wait step for async data to load
+
+url_mismatch
+  - Meaning: Current URL does not contain the expected substring
+  - Fix: Check routing configuration; verify prior flow steps succeeded
+
+console_error
+  - Meaning: One or more console.error() calls detected during flow
+  - Fix: Fix the JS error in your application; check raw.console_logs for text
+
+network_failure
+  - Meaning: A required network request returned non-2xx status
+  - Fix: Ensure backend is running; check raw.network_requests for URL/status
+
+timeout
+  - Meaning: An operation exceeded configured timeout (default: 15000ms)
+  - Fix: Increase timeout in config or step; fix slow page load
+
+assertion_failed
+  - Meaning: Generic fallback — no more specific type applies
+  - Fix: Read detail field; open timeline_url for full replay
+
+---
+
+## Config Schema (verfix.config.json)
+
+Top-level:
+  baseUrl: string (required) — app base URL
+  mode: "strict" | "assisted" | "smoke" | "exploratory" (default: "strict")
+  flows: Flow[] (required)
+  assertions: AssertionDefinition[] (optional) — global assertions
+  selectors: Record<string, string> (optional) — named selector map
+  metadata: object (optional)
+  timeout: number (optional, default: 15000ms)
+  retries: number (optional, default: 2)
+
+Flow:
+  id: string (required)
+  name: string (optional)
+  mode: string (optional) — overrides global mode
+  steps: FlowStep[] (required)
+  assertions: AssertionDefinition[] (optional)
+
+FlowStep actions:
+  navigate  — { action: "navigate", url: string }
+  click     — { action: "click", selector?: string, testId?: string, text?: string }
+  type      — { action: "type", selector?: string, testId?: string, value: string }
+  wait_for_selector — { action: "wait_for_selector", selector?: string, testId?: string }
+
+AssertionDefinition types:
+  page_loaded           — no extra fields required
+  selector_visible      — selector: string
+  text_visible          — value: string
+  url_contains          — value: string
+  title_contains        — value: string
+  no_console_errors     — no extra fields required
+  network_request_success — value: string (URL pattern)
+
+---
+
+## Execution Modes
+
+strict:
+  Selector strategy: data-testid → CSS only
+  AI usage: None
+  Reliability: 5/5
+  Best for: CI/CD, regression testing
+
+assisted:
+  Selector strategy: data-testid → semantic → AI fallback
+  AI usage: Recovery only (when selector fails)
+  Recovery chain: exact → semantic (aria-label, role, text) → AI (LLM DOM analysis)
+  Reliability: 4/5
+  Best for: Active development, evolving UIs
+
+exploratory:
+  Selector strategy: AI-planned
+  AI usage: Core driver
+  Reliability: 2/5
+  Best for: Discovery, ad-hoc QA, unknown flows
+
+---
+
+## Agent Retry Loop
+
+Pseudocode (TypeScript):
+
+async function verifyAndFix(flowId: string, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const { stdout } = await exec(`verfix run --flow ${flowId} --output json`);
+    const result = JSON.parse(stdout);
+
+    if (result.passed) return; // verified
+
+    for (const failure of result.failures) {
+      // failure.type tells you what broke
+      // failure.fix_hint tells you exactly how to fix it
+      await applyFix(failure);
+    }
+
+    if (attempt === maxRetries - 1) {
+      // Surface to human
+      throw new Error(`Open: ${result.timeline_url}`);
+    }
+  }
+}
+
+---
+
+## Self-Hosting
+
+docker run -d \
+  --name verfix \
+  -p 3610:3610 \
+  -p 3611:3611 \
+  -e OPENAI_API_KEY=sk-... \
+  -v verfix-data:/var/lib/postgresql/15/main \
+  -v verfix-artifacts:/app/workers/artifacts \
+  --add-host host.docker.internal:host-gateway \
+  ghcr.io/verfix-dev/verfix-server:latest
+
+Health check: GET http://localhost:3611/api/v1/health → { "status": "healthy" }
+
+Environment variables:
+  OPENAI_API_KEY    — Required for assisted/exploratory modes
+  OPENAI_MODEL      — Default: gpt-5.5
+  MAX_CONCURRENCY   — Default: 3
+
+Volumes:
+  verfix-data       — PostgreSQL data (execution history)
+  verfix-artifacts  — Screenshots, traces, HAR files
+
+Ports:
+  3610 — Dashboard (execution timeline UI)
+  3611 — API (Go/Fiber REST)
+
+---
+
+## AGENTS.md
+
+verfix init generates AGENTS.md in your project root.
+This file tells coding agents (Claude, Cursor, Codex) how to use Verfix in this project.
+It includes: base URL, flow IDs, retry loop instructions, failure taxonomy, output contract.
+Agents that read AGENTS.md will automatically use Verfix after UI changes.

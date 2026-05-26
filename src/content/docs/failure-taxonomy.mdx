@@ -1,0 +1,259 @@
+---
+title: Failure Taxonomy
+description: Every FailureType from workers/src/assertions/types.ts — causes, fix_hint patterns, and how to fix them.
+---
+
+Every failed assertion produces a `failure_type` field in the output. This is the canonical `FailureType` union from `workers/src/assertions/types.ts`.
+
+```typescript
+export type FailureType =
+  | 'selector_not_found'
+  | 'selector_not_visible'
+  | 'text_mismatch'
+  | 'url_mismatch'
+  | 'console_error'
+  | 'network_failure'
+  | 'timeout'
+  | 'assertion_failed';
+```
+
+---
+
+## selector_not_found
+
+**A CSS selector or `data-testid` matched zero elements in the DOM.**
+
+**Triggered by:** `selector_visible` assertion when the element does not exist.
+
+**`fix_hint` pattern:**
+```
+Selector "[data-testid=submit]" not found in DOM.
+Add a stable data-testid or update the selector.
+```
+
+**Common causes:**
+- Element has not been rendered yet (async data, lazy loading)
+- The `data-testid` attribute was renamed or removed
+- The component is conditionally rendered and the condition is false
+- The selector targets a shadow DOM element (not supported without special handling)
+
+**How to fix:**
+```tsx
+// Add data-testid to your component
+<button data-testid="submit" type="submit">
+  Submit
+</button>
+```
+
+If the element renders after an async operation, add a `wait_for_selector` step before the assertion:
+
+```json
+{ "action": "wait_for_selector", "selector": "[data-testid=submit]" }
+```
+
+---
+
+## selector_not_visible
+
+**The element exists in the DOM but is not visible.**
+
+**Triggered by:** `selector_visible` assertion when the element is found but hidden (`display: none`, `visibility: hidden`, zero dimensions, or `opacity: 0`).
+
+**`fix_hint` pattern:**
+```
+Selector "[data-testid=modal]" exists but is not visible.
+Check CSS/conditional rendering or wait for state to settle.
+```
+
+**Common causes:**
+- Element is rendered with `display: none` or `visibility: hidden`
+- Component uses a CSS transition and the animation hasn't completed
+- Element is off-screen or has zero width/height
+- The component is mounted but not yet shown (controlled visibility state)
+
+**How to fix:**
+- Check conditional rendering logic
+- Ensure the trigger that shows the element (button click, state change) is in the flow steps before the assertion
+- Add a brief wait step if CSS transitions are involved
+
+---
+
+## text_mismatch
+
+**Expected text was not found on the page.**
+
+**Triggered by:** `text_visible` and `title_contains` assertions.
+
+**`fix_hint` pattern:**
+```
+Expected text "Welcome back" but saw "Sign in".
+Verify content or wait for data to render.
+```
+
+**Common causes:**
+- Server-side data hasn't loaded yet when the assertion runs
+- Internationalization / locale mismatch
+- The text changed in a recent code update
+- The element renders placeholder text before real data loads
+
+**How to fix:**
+- Update the `value` in the assertion to match the current text
+- Add a `wait_for_selector` step to wait for the element containing the text to appear
+- Check that test data / fixtures match what the assertion expects
+
+---
+
+## url_mismatch
+
+**The current URL does not contain the expected substring.**
+
+**Triggered by:** `url_contains` assertion.
+
+**`fix_hint` pattern:**
+```
+Expected URL to contain "/dashboard" but got "/login".
+Check routing/redirects and wait for navigation.
+```
+
+**Common causes:**
+- Authentication failed, causing a redirect back to `/login`
+- The route changed (path renamed, new routing config)
+- Navigation is async and the assertion ran before the redirect completed
+- The login step failed silently and navigation never happened
+
+**How to fix:**
+- Check the preceding flow steps — if login failed, that's the root cause
+- Verify the route exists and is correctly configured
+- Add a `wait_for_selector` step for a post-navigation element before the URL assertion
+
+---
+
+## console_error
+
+**One or more `console.error()` calls were detected during the flow.**
+
+**Triggered by:** `no_console_errors` assertion.
+
+**`fix_hint` pattern:**
+```
+Console errors detected.
+Fix JS errors or mock failing dependencies.
+```
+
+**Common causes:**
+- Unhandled promise rejection
+- React rendering error (hydration mismatch, missing key prop)
+- Failed API call that logs to console
+- Third-party script error
+- Missing environment variable causing a runtime error
+
+**How to fix:**
+- Check the `console_logs` field in the raw output for the exact error text
+- Fix the underlying JS error in your application
+- If the error is from a known third-party script, consider ignoring it or mocking the dependency in test
+
+---
+
+## network_failure
+
+**A network request returned a non-2xx status or failed to complete.**
+
+**Triggered by:** `network_request_success` assertion.
+
+**`fix_hint` pattern:**
+```
+Network request failed or returned non-2xx.
+Check backend availability or mock API responses.
+```
+
+**Common causes:**
+- Backend service is not running or not reachable
+- API endpoint returned 4xx or 5xx
+- CORS error preventing the request
+- Network timeout
+
+**How to fix:**
+- Ensure your backend is running and reachable from the test environment
+- Check the `network_requests` field in the raw output for the exact URL, method, and status code
+- Mock the API response if the backend is not available in CI
+
+---
+
+## timeout
+
+**An operation exceeded the configured timeout duration.**
+
+**Triggered by:** Any step or assertion that takes longer than the configured `timeout` (default: 15000ms).
+
+**`fix_hint` pattern:**
+```
+Operation timed out.
+Increase timeout or wait for network/DOM to settle before asserting.
+```
+
+**Common causes:**
+- Slow page load (large bundle, slow server)
+- Animation or transition blocking element visibility
+- Infinite loading state (spinner never resolves)
+- Network request taking too long
+- Heavy CPU work blocking the main thread
+
+**How to fix:**
+- Increase the timeout for the specific step or assertion:
+  ```json
+  { "type": "selector_visible", "selector": "[data-testid=dashboard]", "timeout": 30000 }
+  ```
+- Or increase the global timeout in the config:
+  ```json
+  { "timeout": 30000 }
+  ```
+- Investigate why the operation is slow — fix the root cause rather than just raising the timeout
+
+---
+
+## assertion_failed
+
+**Generic fallback failure type when no more specific type applies.**
+
+**Triggered by:** `page_loaded`, `exploration_result`, and any assertion where the error doesn't match a more specific pattern.
+
+**`fix_hint` pattern:**
+```
+Assertion failed.
+Verify assertion inputs and app state before retrying.
+```
+
+**How to fix:**
+- Check the `detail` field for the raw error message
+- Check the `raw` output for full assertion details
+- Open `timeline_url` for the full execution replay with screenshots
+
+---
+
+## Failure object shape
+
+Each item in the `failures[]` array in the JSON output:
+
+```typescript
+{
+  type: FailureType;        // one of the types above
+  selector?: string;        // the selector that failed (if applicable)
+  detail?: string;          // raw error message from Playwright
+  fix_hint?: string;        // actionable hint for the agent
+}
+```
+
+Full `AssertionResult` shape (in `raw.assertions[]`):
+
+```typescript
+{
+  type: AssertionType;
+  passed: boolean;
+  duration_ms: number;
+  error?: string;
+  details?: Record<string, unknown>;
+  screenshot_on_failure?: string;
+  failure_type?: FailureType;
+  fix_hint?: string;
+}
+```

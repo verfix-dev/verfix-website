@@ -1,0 +1,237 @@
+---
+title: Config Reference
+description: Every field in verfix.config.json — flows, steps, assertions, modes, and selectors.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+`verfix.config.json` is the **Flow Library** for your project. It lives in your project root and is created by `verfix init`.
+
+## Full annotated example
+
+```json
+{
+  "baseUrl": "http://localhost:3000",
+  "mode": "assisted",
+  "flows": [
+    {
+      "id": "homepage-smoke",
+      "steps": [
+        { "action": "navigate", "url": "/" }
+      ],
+      "assertions": [
+        { "type": "page_loaded" },
+        { "type": "no_console_errors" }
+      ]
+    },
+    {
+      "id": "contact-form",
+      "mode": "strict",
+      "steps": [
+        { "action": "navigate", "url": "/contact" },
+        { "action": "type", "selector": "[data-testid=name]", "value": "Test User" },
+        { "action": "click", "selector": "[data-testid=submit]" }
+      ],
+      "assertions": [
+        { "type": "text_visible", "value": "Thank you" }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## Top-level fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `baseUrl` | `string` | Yes | — | Base URL of your app. All `navigate` steps with relative URLs are resolved against this. |
+| `mode` | `"strict" \| "assisted" \| "smoke" \| "exploratory"` | No | `"strict"` | Default execution mode for all flows. Individual flows can override this. |
+| `flows` | `Flow[]` | Yes | — | Array of verification flows. |
+| `assertions` | `AssertionDefinition[]` | No | — | Global assertions applied to every flow if the flow has none. |
+| `selectors` | `Record<string, string>` | No | — | Named selector map. Referenced by key in step targets. |
+| `metadata` | `object` | No | — | Arbitrary metadata passed to the API (e.g. `{ "framework": "nextjs" }`). |
+| `timeout` | `number` | No | `15000` | Default timeout in milliseconds for steps and assertions. |
+| `retries` | `number` | No | `2` | Number of retries on failure before declaring the flow failed. |
+
+---
+
+## Flow fields
+
+Each item in the `flows` array:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | Yes | Unique identifier for this flow. Used with `--flow <id>`. |
+| `name` | `string` | No | Alternative to `id`. If both provided, `id` takes precedence. |
+| `mode` | `"strict" \| "assisted" \| "smoke" \| "exploratory"` | No | Overrides the global mode for this flow only. |
+| `steps` | `FlowStep[]` | Yes | Ordered list of browser actions. |
+| `assertions` | `AssertionDefinition[]` | No | Assertions to check after all steps complete. |
+
+---
+
+## Step actions
+
+Steps are the browser actions executed in order before assertions run.
+
+### navigate
+
+Navigate to a URL. Relative paths are resolved against `baseUrl`.
+
+```json
+{ "action": "navigate", "url": "/login" }
+{ "action": "navigate", "url": "https://example.com/page" }
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `action` | `"navigate"` | Yes | — |
+| `url` | `string` | Yes | Absolute or relative URL |
+
+### click
+
+Click an element.
+
+```json
+{ "action": "click", "selector": "[data-testid=submit]" }
+{ "action": "click", "testId": "submit-button" }
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `action` | `"click"` | Yes | — |
+| `selector` | `string` | One of | CSS selector |
+| `testId` | `string` | One of | Shorthand for `[data-testid=<value>]` |
+| `text` | `string` | One of | Finds element by visible text content |
+| `timeout` | `number` | No | Step-level timeout override in ms |
+
+### type
+
+Type text into an input.
+
+```json
+{ "action": "type", "selector": "[data-testid=email]", "value": "test@example.com" }
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `action` | `"type"` | Yes | — |
+| `selector` / `testId` / `text` | `string` | One of | Target element |
+| `value` | `string` | Yes | Text to type |
+| `timeout` | `number` | No | Step-level timeout override in ms |
+
+### wait_for_selector
+
+Wait for an element to appear before proceeding.
+
+```json
+{ "action": "wait_for_selector", "selector": "[data-testid=dashboard]" }
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `action` | `"wait_for_selector"` | Yes | — |
+| `selector` / `testId` | `string` | One of | Target element |
+| `timeout` | `number` | No | Step-level timeout override in ms |
+
+---
+
+## Assertion types
+
+Assertions are checked after all steps complete. Each has a `type` field.
+
+### page_loaded
+
+Verifies the page loaded without a navigation error.
+
+```json
+{ "type": "page_loaded" }
+```
+
+### selector_visible
+
+Verifies an element matching the selector is present and visible.
+
+```json
+{ "type": "selector_visible", "selector": "[data-testid=dashboard]" }
+```
+
+| Field | Type | Required |
+|-------|------|----------|
+| `selector` | `string` | Yes |
+| `timeout` | `number` | No |
+
+### text_visible
+
+Verifies a text string appears on the page.
+
+```json
+{ "type": "text_visible", "value": "Welcome back" }
+```
+
+| Field | Type | Required |
+|-------|------|----------|
+| `value` | `string` | Yes |
+| `timeout` | `number` | No |
+
+### url_contains
+
+Verifies the current URL contains a substring.
+
+```json
+{ "type": "url_contains", "value": "/dashboard" }
+```
+
+| Field | Type | Required |
+|-------|------|----------|
+| `value` | `string` | Yes |
+
+### title_contains
+
+Verifies the page `<title>` contains a substring.
+
+```json
+{ "type": "title_contains", "value": "Dashboard" }
+```
+
+| Field | Type | Required |
+|-------|------|----------|
+| `value` | `string` | Yes |
+
+### no_console_errors
+
+Fails if any `console.error()` calls were detected during the flow.
+
+```json
+{ "type": "no_console_errors" }
+```
+
+### network_request_success
+
+Verifies a network request to a URL pattern returned a 2xx status.
+
+```json
+{ "type": "network_request_success", "value": "/api/user" }
+```
+
+| Field | Type | Required |
+|-------|------|----------|
+| `value` | `string` | Yes — URL pattern to match |
+
+---
+
+## Preset flow scaffolds
+
+`verfix init` can scaffold these flows from the preset library:
+
+| Flow ID | Steps |
+|---------|-------|
+| `login` | navigate `/login` → type email → type password → click submit |
+| `dashboard-load` | navigate `/dashboard` → assert page_loaded + selector_visible + no_console_errors |
+| `signup` | navigate `/signup` → type name/email/password → click submit |
+| `checkout` | navigate `/checkout` → type card number → click pay button |
+
+<Aside type="tip">
+Each flow in the config can override the global `mode`. Stable flows that pass reliably should use `"mode": "strict"`. New flows under active development can use `"mode": "assisted"`.
+</Aside>

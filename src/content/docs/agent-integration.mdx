@@ -1,0 +1,262 @@
+---
+title: Agent Integration
+description: How AI coding agents consume Verfix output, the retry loop pattern, AGENTS.md, and the full output contract.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Verfix is built for AI coding agents. This page explains everything an agent needs to use Verfix effectively — from the output contract to the retry loop pattern.
+
+<Aside type="tip">
+AI assistants can read `verfix.dev/llms.txt` for a concise machine-readable reference. This page contains the full guide.
+</Aside>
+
+---
+
+## Overview
+
+The agent loop with Verfix:
+
+1. Agent makes a UI change (edits a component, adds a route, etc.)
+2. Agent runs `verfix run --flow <id> --output json`
+3. Agent reads the JSON output:
+   - `"passed": true` → change is verified, proceed
+   - `"passed": false` → read `failures[].fix_hint`, fix the issue, go to step 1
+4. If the agent cannot fix after N retries, surface `timeline_url` to the human
+
+---
+
+## AGENTS.md
+
+`verfix init` generates an `AGENTS.md` file in your project root. This file tells coding agents (Claude, Cursor, Codex, etc.) how to use Verfix in this specific project.
+
+**What it contains:**
+- The base URL of your app
+- Available flows and their IDs
+- Instructions for the retry loop
+- The failure taxonomy
+- The full output contract
+
+**Location:** `./AGENTS.md` (project root)
+
+Agents that read this file (Claude Code, Cursor, etc.) will automatically use Verfix after UI changes without being explicitly told to.
+
+You can customize the generated `AGENTS.md` — for example, to add project-specific instructions about which flows to run after which types of changes.
+
+---
+
+## The retry loop
+
+### TypeScript pseudocode
+
+```typescript
+async function verifyAndFix(flowId: string, maxRetries = 3): Promise<void> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const result = await runVerfix(flowId);
+
+    if (result.passed) {
+      console.log(`✓ ${flowId} passed`);
+      return;
+    }
+
+    // Agent reads failures and applies fixes
+    for (const failure of result.failures) {
+      console.log(`Failure: ${failure.type}`);
+      console.log(`Fix hint: ${failure.fix_hint}`);
+      await applyFix(failure); // agent implements this
+    }
+
+    if (attempt === maxRetries - 1) {
+      // Cannot self-fix — surface to human
+      console.log(`Could not fix after ${maxRetries} attempts`);
+      console.log(`Open timeline: ${result.timeline_url}`);
+      throw new Error('Verification failed');
+    }
+  }
+}
+
+async function runVerfix(flowId: string) {
+  const { stdout } = await exec(
+    `verfix run --flow ${flowId} --output json`
+  );
+  return JSON.parse(stdout);
+}
+```
+
+---
+
+## Output contract
+
+The full shape of `verfix run --output json`:
+
+```typescript
+{
+  // Top-level result
+  passed: boolean;               // true if all assertions passed
+  failures: FailureDetail[];     // array of failed assertions (empty on pass)
+  timeline_url: string;          // link to execution timeline dashboard
+  exit_code: 0 | 1;             // 0 = pass, 1 = fail
+  execution_id: string;          // unique execution ID (exec_xxx)
+  raw: ExecutionResult;          // full raw API response (see below)
+}
+
+// Each item in failures[]
+{
+  type: FailureType;             // see Failure Taxonomy
+  selector?: string;             // the selector that failed (if applicable)
+  detail?: string;               // raw error message from Playwright
+  fix_hint?: string;             // actionable hint for the agent to fix the code
+}
+
+// FailureType union
+type FailureType =
+  | 'selector_not_found'
+  | 'selector_not_visible'
+  | 'text_mismatch'
+  | 'url_mismatch'
+  | 'console_error'
+  | 'network_failure'
+  | 'timeout'
+  | 'assertion_failed';
+```
+
+### Full `raw` ExecutionResult shape
+
+```typescript
+{
+  executionId: string;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  task: string;
+  url: string;
+  passed: boolean;
+  duration_ms: number;
+  retry_count: number;
+  assertions: AssertionResult[];
+  artifacts: {
+    screenshot?: string;
+    failed_screenshot?: string;
+    trace?: string;
+    har?: string;
+    console_log?: string;
+    network_log?: string;
+    dom_snapshot?: string;
+  };
+  console_logs: { type: string; text: string; timestamp: string; }[];
+  network_requests: { url: string; method: string; status: number; timing_ms: number; }[];
+  error?: string;
+  created_at: string;
+  completed_at?: string;
+}
+```
+
+---
+
+## Tool definition for LLM function calling
+
+If you are building an agent that uses Verfix via LLM tool use, here is a JSON tool definition:
+
+```json
+{
+  "name": "verfix_run",
+  "description": "Run browser verification for a UI flow. Call this after making any UI changes. Returns structured JSON with pass/fail status and actionable fix hints.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "flow": {
+        "type": "string",
+        "description": "The flow ID to run (from verfix.config.json). Run verfix flows to list available IDs."
+      },
+      "mode": {
+        "type": "string",
+        "enum": ["strict", "assisted", "exploratory"],
+        "description": "Verification mode. Default is from config. Use 'assisted' for active development."
+      }
+    },
+    "required": []
+  }
+}
+```
+
+**Execution:** `verfix run --flow {flow} --mode {mode} --output json`
+
+---
+
+## Failure taxonomy for agents
+
+When a failure occurs, the `fix_hint` tells the agent exactly what to do. Here is a mapping from failure type to the recommended fix:
+
+| `type` | What it means | Agent action |
+|--------|--------------|--------------|
+| `selector_not_found` | Element not in DOM | Add `data-testid` to the element in code |
+| `selector_not_visible` | Element hidden | Fix CSS or ensure the element is shown before assertion |
+| `text_mismatch` | Wrong text on page | Update component text or wait for async data |
+| `url_mismatch` | Wrong URL after flow | Fix routing or check that prior steps succeeded |
+| `console_error` | JS error in browser | Fix the error logged to `console.error` |
+| `network_failure` | API returned non-2xx | Fix the backend endpoint or mock it |
+| `timeout` | Operation too slow | Increase timeout or fix the performance issue |
+| `assertion_failed` | Generic failure | Read `detail` and `timeline_url` for specifics |
+
+---
+
+## CI integration
+
+### Exit codes
+
+`verfix run` exits with:
+- `0` — all assertions passed
+- `1` — one or more assertions failed
+
+This makes it drop-in compatible with any CI system.
+
+### GitHub Actions example
+
+```yaml
+name: Verify UI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Start app
+        run: npm run dev &
+        # Wait for your app to be ready
+
+      - name: Install Verfix
+        run: npm install -g verfix
+
+      - name: Start Verfix runtime
+        run: verfix start
+
+      - name: Run verification flows
+        run: verfix run --output json
+
+      - name: Upload timeline on failure
+        if: failure()
+        run: echo "Open timeline_url from the JSON output above"
+```
+
+<Aside type="note">
+Verfix requires Docker to be available in the CI environment. On GitHub Actions, use `ubuntu-latest` which includes Docker. The runtime image pulls from `ghcr.io/verfix-dev/verfix-server:latest`.
+</Aside>
+
+---
+
+## llms.txt
+
+A machine-readable summary of Verfix is available at:
+
+```
+https://verfix.dev/llms.txt
+```
+
+AI assistants that support the [llms.txt standard](https://llmstxt.org/) will automatically discover and use this file to understand how to interact with Verfix.
