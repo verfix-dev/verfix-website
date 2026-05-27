@@ -21,9 +21,10 @@ export default defineConfig({
     },
     title: 'Verfix',
     description: 'Browser verification runtime for AI-generated web apps. Run deterministic flows, assert UI state, get structured JSON for agents.',
+    favicon: '/favicon.ico',
     logo: {
-      light: './src/assets/logo.svg',
-      dark: './src/assets/logo.svg',
+      light: './src/assets/logo.png',
+      dark: './src/assets/logo.png',
       replacesTitle: false,
     },
     social: [
@@ -75,7 +76,7 @@ export default defineConfig({
       },
       {
         tag: 'meta',
-        attrs: { property: 'og:image', content: 'https://verfix.dev/og-image.png' },
+        attrs: { property: 'og:image', content: 'https://verfix.dev/verfixCard.png' },
       },
       {
         tag: 'meta',
@@ -83,7 +84,7 @@ export default defineConfig({
       },
       {
         tag: 'meta',
-        attrs: { name: 'twitter:image', content: 'https://verfix.dev/og-image.png' },
+        attrs: { name: 'twitter:image', content: 'https://verfix.dev/verfixCard.png' },
       },
     ],
   }), sitemap()],
