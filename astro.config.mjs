@@ -54,6 +54,18 @@ export default defineConfig({
     head: [
       {
         tag: 'link',
+        attrs: { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/logo.png' },
+      },
+      {
+        tag: 'link',
+        attrs: { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/logo.png' },
+      },
+      {
+        tag: 'link',
+        attrs: { rel: 'apple-touch-icon', sizes: '180x180', href: '/logo.png' },
+      },
+      {
+        tag: 'link',
         attrs: {
           rel: 'preconnect',
           href: 'https://fonts.googleapis.com',
