@@ -1,9 +1,13 @@
 User-agent: *
 Allow: /
+
 Sitemap: https://verfix.dev/sitemap-index.xml
 
-# AI crawlers — explicitly allowed
+# Allow AI retrieval/search usage
 User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
 Allow: /
 
 User-agent: Claude-Web
@@ -20,3 +24,7 @@ Allow: /
 
 User-agent: Google-Extended
 Allow: /
+
+# Optional: block aggressive/non-useful scrapers
+User-agent: Bytespider
+Disallow: /
