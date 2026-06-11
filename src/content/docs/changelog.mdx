@@ -1,0 +1,45 @@
+---
+title: Changelog
+description: Product releases and updates for the Verfix browser verification runtime.
+---
+
+This page lists the recent product releases, features, and fixes for the Verfix runtime and CLI.
+
+For the full detailed commit history and changes, visit the [full CHANGELOG on GitHub](https://github.com/verfix-dev/verfix/blob/main/CHANGELOG.md).
+
+---
+
+## v0.2.1 (2026-06-10)
+
+### Key Highlights
+- **AI Agent Context File**: Added `.github/agents.md` containing coding standards, monorepo architecture, testing instructions, and critical networking guardrails for AI coding assistants.
+- **2026 Model Support**: Updated static model lists for OpenAI (`gpt-5.4-mini`/`gpt-5.5`), Anthropic (`claude-sonnet-4-6`/`claude-opus-4-8`), and Gemini (`gemini-3.5-flash`/`gemini-3.5-pro`), and added support for the new Gemini `AQ` key prefix.
+
+---
+
+## v0.2.0 (2026-06-10)
+
+### Key Highlights
+- **Multi-provider AI Support**: Implemented custom HTTP-based adapters in the AI runtime to support OpenAI, Anthropic, Gemini, and OpenRouter, completely eliminating the external `openai` SDK dependency.
+- **API Key Connectivity Testing**: Added an interactive connectivity test step for AI API keys during the `verfix init` setup wizard.
+- **Config Migration & Validation**: Added schema validation and automated configuration migration support for legacy configurations.
+- **Docker Networking**: Improved Docker networking resolving logic in CLI and workers to handle platform-specific URLs (`host.docker.internal` vs. host networking) across multiple AI providers.
+
+---
+
+## v0.1.5 (2026-06-07)
+
+### Key Highlights
+- **Programmatic SDK**: Introduced programmatic SDK for integration scenarios with a class-based API.
+- **Flow Scaffold Changes**: Updated `verfix init` to no longer scaffold empty flows — replaced with `verfix create flow <name>` for on-demand flow creation.
+- **CLI Automation Support**: Added clean JSON output mode and predictable exit code contracts for machine-driven integration.
+- **Disk Optimization**: Improved the screenshot/image capturing system to save disk space in execution artifacts.
+
+---
+
+## v0.1.4 (2026-05-25)
+
+### Key Highlights
+- **Port Management**: Introduced runtime port management with new defaults (Dashboard `3610`, API `3611`) and automatic port fallback (`3612/3613`, etc.).
+- **Self-Healing Ports**: Configured container-to-CLI runtime port sync and API health-based fallback discovery for robust local runs.
+- **Init Wizard Fixes**: Corrected app-port auto-detection to prevent selecting runtime/API ports as the user's app port.
