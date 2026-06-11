@@ -1,6 +1,6 @@
 # Verfix — Full Reference
 > Browser verification runtime for AI-generated web apps
-> Version: 0.1.4
+> Version: 0.2.1
 > License: Apache 2.0
 > Docs: https://verfix.dev/docs
 > Source: https://github.com/verfix-dev/verfix

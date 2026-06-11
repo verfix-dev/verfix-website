@@ -50,6 +50,7 @@ export default defineConfig({
           { label: 'Self-Hosting', slug: 'self-hosting' },
         ],
       },
+      { label: 'Changelog', slug: 'changelog' },
     ],
     head: [
       {
