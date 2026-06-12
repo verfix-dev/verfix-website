@@ -548,6 +548,9 @@ h1.hero-headline {
   .page-section { padding: 3rem 1.25rem; }
   .footer-inner { flex-direction: column; }
 
+  /* Hide terminal demo on mobile */
+  .hero-right { display: none; }
+
   /* Quickstart mobile fixes */
   .qs-step {
     grid-template-columns: 2rem 1fr;
@@ -562,10 +565,15 @@ h1.hero-headline {
   .qs-code-wrap {
     flex-direction: column;
     align-items: stretch;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
   .qs-code {
     white-space: pre-wrap;
-    word-break: break-all;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
     font-size: 0.75rem;
     padding: 10px 12px;
   }
