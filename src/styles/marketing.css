@@ -547,4 +547,35 @@ h1.hero-headline {
   .nav-links { display: none; }
   .page-section { padding: 3rem 1.25rem; }
   .footer-inner { flex-direction: column; }
+
+  /* Quickstart mobile fixes */
+  .qs-step {
+    grid-template-columns: 2rem 1fr;
+    gap: 1rem;
+    padding: 1.25rem 0;
+  }
+  .qs-num {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.7rem;
+  }
+  .qs-code-wrap {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .qs-code {
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 0.75rem;
+    padding: 10px 12px;
+  }
+  .qs-copy-btn {
+    border-left: none;
+    border-top: 1px solid var(--vf-border);
+    justify-content: center;
+    padding: 8px;
+  }
+  .qs-note {
+    font-size: 0.75rem;
+  }
 }
