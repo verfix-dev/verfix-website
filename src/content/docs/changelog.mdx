@@ -9,6 +9,32 @@ For the full detailed commit history and changes, visit the [full CHANGELOG on G
 
 ---
 
+## v0.2.5 (2026-06-16)
+
+### Added
+- **CLI Local Proxy**: Transparent TCP proxy for Docker networking on Windows/macOS. Automatically forwards traffic from the container to the host machine, fixing `ERR_CONNECTION_REFUSED` errors on Windows Firewall and macOS.
+
+### Fixed
+- Docker networking for Windows/macOS when targeting localhost services
+- Worker connection error messages now clearly indicate host server connectivity issues
+
+## v0.2.2 (2026-06-14)
+
+### Added
+- CLI update notifications for both npm package and Docker server image
+- `verfix start` and `verfix status` now show update banners when newer version available
+- Background version checks with 24-hour caching — zero blocking I/O
+
+### Changed
+- Redesigned dashboard workspace with Postman-inspired shell, responsive split panels, and unified light/dark theme tokens
+- Flaky task display switched from URL-level to execution-level granularity
+- Improved dashboard keyboard navigation, ARIA labels, and validation feedback
+
+### Fixed
+- Docker build failure from `.dockerignore` excluding `cli/` directory
+- Database performance with composite index for flaky URL queries
+- Database resource leak with deferred row close in `handleFlaky`
+
 ## v0.2.1 (2026-06-10)
 
 ### Key Highlights
