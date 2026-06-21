@@ -9,6 +9,31 @@ For the full detailed commit history and changes, visit the [full CHANGELOG on G
 
 ---
 
+## v0.2.7 (2026-06-20)
+
+### Added
+- **Anonymous Telemetry & Analytics**: Integrated privacy-first telemetry with PostHog to track usage metrics for CLI initialization, diagnostic checking, container startups, and verification runs.
+  - Automatically respects standard `DO_NOT_TRACK` and `VERFIX_TELEMETRY=off` environment variables.
+  - Uses an anonymous tracking identifier generated once and stored in `~/.verfix/.machine-id` (no PII, hostname, or system paths collected).
+  - Shows a clear, transparent, one-time privacy notice on first execution.
+  - Telemetry works completely asynchronously on lazy-loaded paths, ensuring zero execution block.
+- **Telemetry Documentation**: Added a comprehensive Telemetry & Privacy developer documentation guide.
+
+## v0.2.6 (2026-06-20)
+
+### Added
+- **Non-Interactive Setup Wizard Mode**: Added `--yes` / `-y` flag to `verfix init` for unattended execution using flags or environment variables. Particularly useful for automated environments, CI/CD pipelines, and AI coding agents.
+- **Provider Auto-Detection**: Automatically detects AI providers (OpenAI, Anthropic, Gemini, OpenRouter) based on the format of the provided API key.
+- **Agent Setup Command**: Added `verfix agent-setup` command that outputs machine-readable JSON instructions for AI coding agents to bootstrap Verfix.
+- **Graceful Docker Degradation**: Init wizard now warns and continues configuring if Docker is not installed or running, instead of hard failing.
+- **Dry-run Mode**: Added `--dry-run` flag to preview what would be configured as JSON without writing any files.
+
+### Changed
+- `verfix init` now supports `--ai-provider`, `--ai-model`, `--ai-key`, `--base-url`, `--mode`, `--skip-runtime`, `--skip-agent-files`, and `--dry-run` flags.
+- Environment variable fallbacks: `VERFIX_AI_PROVIDER`, `VERFIX_AI_MODEL`, `VERFIX_AI_KEY`, `VERFIX_BASE_URL`, `VERFIX_MODE` are now recognized.
+
+---
+
 ## v0.2.5 (2026-06-16)
 
 ### Added

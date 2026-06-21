@@ -8,7 +8,7 @@ import { Aside, Steps } from '@astrojs/starlight/components';
 ## Prerequisites
 
 - **Docker Desktop** — [download here](https://www.docker.com/products/docker-desktop/). Must be running before you use Verfix.
-- **Node.js 18+** — `node --version` to check.
+- **Node.js 20.20.0+** — `node --version` to check.
 
 ---
 
@@ -74,6 +74,10 @@ The interactive wizard will:
 5. Ask for your **AI API key** (required for Assisted/Exploratory mode)
 6. Write `verfix.config.json` in your project root
 7. Generate or update `AGENTS.md` so coding agents know how to use Verfix
+
+<Aside type="tip">
+For non-interactive environments (CI/CD or AI agents), use `verfix init --yes` with flags or environment variables. See the CLI Reference for all available options.
+</Aside>
 
 ---
 
