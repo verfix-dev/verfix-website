@@ -17,12 +17,28 @@ AI assistants can read `verfix.dev/llms.txt` for a concise machine-readable refe
 
 The agent loop with Verfix:
 
-1. Agent makes a UI change (edits a component, adds a route, etc.)
-2. Agent runs `verfix run --flow <id> --output json`
-3. Agent reads the JSON output:
+1. Check if Verfix is initialized: `verfix agent-setup --output json`
+2. If not initialized, run: `verfix init --yes` with required flags
+3. Agent makes a UI change (edits a component, adds a route, etc.)
+4. Agent runs `verfix run --flow <id> --output json`
+5. Agent reads the JSON output:
    - `"passed": true` → change is verified, proceed
-   - `"passed": false` → read `failures[].fix_hint`, fix the issue, go to step 1
-4. If the agent cannot fix after N retries, surface `timeline_url` to the human
+   - `"passed": false` → read `failures[].fix_hint`, fix the issue, go to step 3
+6. If the agent cannot fix after N retries, surface `timeline_url` to the human
+
+### Agent setup command
+
+For AI agents that need to bootstrap Verfix programmatically:
+
+```bash
+verfix agent-setup
+```
+
+This outputs JSON with setup instructions. If `initialized` is `false`, run:
+
+```bash
+verfix init --yes --ai-key $AI_API_KEY
+```
 
 ---
 

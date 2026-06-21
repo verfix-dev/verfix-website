@@ -11,18 +11,13 @@ import MarketingLayout from '../layouts/MarketingLayout.astro';
       <h1 class="tl-title">Telemetry</h1>
       <p class="tl-subtitle">What Verfix collects, why, and how to opt out.</p>
 
-      <div class="tl-notice">
-        <strong>Note:</strong> Telemetry is not yet implemented in the current release.
-        This page documents what will be collected when it ships. No data is currently sent.
-      </div>
-
       <p class="tl-body">
-        The Verfix CLI will collect anonymous usage data to understand how developers use
+        The Verfix CLI collects anonymous usage data to understand how developers use
         the tool. This helps prioritize what to fix and build next. No personal information
         is ever collected.
       </p>
 
-      <h2 class="tl-h2">What we will collect</h2>
+      <h2 class="tl-h2">What we collect</h2>
 
       <table class="tl-table">
         <thead>
@@ -33,17 +28,18 @@ import MarketingLayout from '../layouts/MarketingLayout.astro';
           </tr>
         </thead>
         <tbody>
-          <tr><td>command</td><td>"run"</td><td>Know which commands are used most</td></tr>
+          <tr><td>command</td><td>"run", "init", "start"</td><td>Know which commands are used most</td></tr>
           <tr><td>passed</td><td>true / false</td><td>Understand overall pass rates</td></tr>
-          <tr><td>failure_type</td><td>"selector_not_found"</td><td>Know what breaks most often</td></tr>
-          <tr><td>cli_version</td><td>"0.1.4"</td><td>Track adoption of versions</td></tr>
-          <tr><td>platform</td><td>"linux"</td><td>Know which OS to prioritize</td></tr>
-          <tr><td>node_version</td><td>"v20.11.0"</td><td>Compatibility decisions</td></tr>
-          <tr><td>anonymous_id</td><td>UUID (random)</td><td>Count unique users without identifying them</td></tr>
+          <tr><td>provider</td><td>"openai", "anthropic"</td><td>Know which AI providers are used</td></tr>
+          <tr><td>cli_version</td><td>"0.2.7"</td><td>Track adoption of versions</td></tr>
+          <tr><td>platform</td><td>"linux", "darwin", "win32"</td><td>Know which OS to prioritize</td></tr>
+          <tr><td>node_version</td><td>"20.22.0"</td><td>Compatibility decisions</td></tr>
+          <tr><td>anonymous_id</td><td>UUID (stored locally)</td><td>Count unique users without identifying them</td></tr>
+          <tr><td>is_ci</td><td>true / false</td><td>Separate real developer usage from CI pipelines</td></tr>
         </tbody>
       </table>
 
-      <h2 class="tl-h2">What we will never collect</h2>
+      <h2 class="tl-h2">What we never collect</h2>
 
       <ul class="tl-never">
         <li>IP addresses</li>
@@ -52,24 +48,29 @@ import MarketingLayout from '../layouts/MarketingLayout.astro';
         <li>Personal information of any kind</li>
         <li>Environment variables or secrets</li>
         <li>Source code or file contents</li>
+        <li>API keys or credentials</li>
       </ul>
 
       <h2 class="tl-h2">How to opt out</h2>
 
-      <p class="tl-body">When telemetry ships, you will be able to opt out at any time:</p>
+      <p class="tl-body">You can opt out at any time:</p>
 
-      <div class="tl-code">verfix telemetry disable</div>
+      <div class="tl-code">export VERFIX_TELEMETRY=off</div>
 
-      <p class="tl-body">Or set an environment variable:</p>
+      <p class="tl-body">Or use the standard environment variable:</p>
 
-      <div class="tl-code"># In your shell profile or .env<br />export VERFIX_TELEMETRY=0</div>
+      <div class="tl-code">export DO_NOT_TRACK=1</div>
 
       <h2 class="tl-h2">CI environments</h2>
 
       <p class="tl-body">
-        Telemetry will be automatically disabled in CI environments when the
+        Telemetry is automatically disabled in CI environments when the
         <code class="tl-inline">CI=true</code> environment variable is set
         (standard on GitHub Actions, GitLab CI, CircleCI, etc.).
+      </p>
+
+      <p class="tl-body">
+        You can override this by explicitly setting <code class="tl-inline">VERFIX_TELEMETRY=forced</code> if you want to track CI usage.
       </p>
     </div>
   </main>
@@ -95,16 +96,6 @@ import MarketingLayout from '../layouts/MarketingLayout.astro';
     color: var(--vf-text-secondary);
     font-size: 1rem;
     margin-bottom: 3rem;
-  }
-  .tl-notice {
-    background: rgba(245, 166, 35, 0.07);
-    border: 1px solid rgba(245, 166, 35, 0.2);
-    border-radius: 8px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 2rem;
-    font-size: 0.875rem;
-    color: var(--vf-amber);
-    line-height: 1.6;
   }
   .tl-h2 {
     font-size: 1.125rem;

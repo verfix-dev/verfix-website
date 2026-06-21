@@ -17,10 +17,11 @@ All commands can also be run with `npx verfix <command>`.
 
 ## verfix init
 
-**Interactive setup wizard** — configures the runtime, scaffolds flows, and generates `AGENTS.md`.
+**Setup wizard** — configures the runtime, scaffolds flows, and generates `AGENTS.md`.
 
 ```bash
-verfix init
+verfix init              # Interactive mode
+verfix init --yes        # Non-interactive mode (for CI and AI agents)
 ```
 
 **Options:**
@@ -28,6 +29,29 @@ verfix init
 | Flag | Description |
 |------|-------------|
 | `-f, --force` | Overwrite existing files without prompting |
+| `-y, --yes` | Non-interactive mode (for CI and AI agents) |
+| `--ai-provider <id>` | AI provider: `openai` \| `anthropic` \| `gemini` \| `openrouter` (auto-detected from key format if omitted) |
+| `--ai-model <name>` | Model ID (e.g. `gpt-5.4-mini`, `claude-sonnet-4-6`). Uses provider default if omitted. |
+| `--ai-key <key>` | API key string |
+| `--base-url <url>` | App URL (e.g. `http://localhost:3000`). Default: `http://localhost:3000` |
+| `--mode <mode>` | Verification mode: `strict` \| `assisted` \| `exploratory`. Default: `assisted` |
+| `--skip-runtime` | Don't start Docker container |
+| `--skip-agent-files` | Don't write `.cursorrules`/`CLAUDE.md`/`CODEX.md` |
+| `--dry-run` | Preview what would happen, don't write anything |
+
+**Environment variable fallbacks:**
+
+| Variable | Flag |
+|----------|------|
+| `VERFIX_AI_PROVIDER` | `--ai-provider` |
+| `VERFIX_AI_MODEL` | `--ai-model` |
+| `VERFIX_AI_KEY` | `--ai-key` |
+| `VERFIX_BASE_URL` | `--base-url` |
+| `VERFIX_MODE` | `--mode` |
+| `OPENAI_API_KEY` | `--ai-key` (for OpenAI) |
+| `ANTHROPIC_API_KEY` | `--ai-key` (for Anthropic) |
+| `GEMINI_API_KEY` | `--ai-key` (for Gemini) |
+| `OPENROUTER_API_KEY` | `--ai-key` (for OpenRouter) |
 
 **What it does (step by step):**
 
@@ -40,6 +64,49 @@ verfix init
 7. Prompts for your **AI API key** (required for Assisted/Exploratory)
 8. Writes `verfix.config.json` in the current directory
 9. Generates or updates `AGENTS.md`
+
+**Non-interactive example:**
+
+```bash
+VERFIX_AI_KEY="$OPENAI_API_KEY" verfix init --yes --base-url http://localhost:3000
+```
+
+---
+
+## verfix agent-setup
+
+**Output machine-readable setup instructions for AI coding agents.**
+
+```bash
+verfix agent-setup
+```
+
+Prints JSON with setup information and bootstrap instructions. Useful for AI agents that need to initialize Verfix programmatically.
+
+**JSON output shape:**
+
+```json
+{
+  "initialized": false,
+  "agents_md_exists": false,
+  "bootstrap": {
+    "description": "Run this command to initialize Verfix non-interactively",
+    "command": "npx verfix init --yes",
+    "required_flags": {
+      "--ai-key": "API key (or set VERFIX_AI_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY env var)"
+    },
+    "optional_flags": {
+      "--ai-provider": "openai | anthropic | gemini | openrouter (auto-detected from key if omitted)",
+      "--ai-model": "Model ID (uses provider default if omitted)",
+      "--base-url": "App URL (default: http://localhost:3000)",
+      "--mode": "strict | assisted | exploratory (default: assisted)",
+      "--skip-runtime": "Skip Docker container startup",
+      "--skip-agent-files": "Skip writing .cursorrules/CLAUDE.md/CODEX.md",
+      "--dry-run": "Preview without writing files"
+    }
+  }
+}
+```
 
 ---
 
@@ -276,3 +343,10 @@ verfix --version    # Print CLI version
 verfix --help       # Print help for any command
 verfix <cmd> --help # Print help for a specific command
 ```
+
+---
+
+## Requirements
+
+- **Docker Desktop** — [download here](https://www.docker.com/products/docker-desktop/). Must be running before using Verfix.
+- **Node.js 20.20.0+** — `node --version` to check.
