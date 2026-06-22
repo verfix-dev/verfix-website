@@ -5,6 +5,46 @@ All notable changes to the Verfix product will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9] - 2026-06-22
+
+### Fixed
+- Minor bug fixes and documentation updates.
+
+## [0.2.8] - 2026-06-22
+
+### Added
+- **Hybrid Browser Mode (Host/Container):** Introduced a dual browser execution model with two modes: `host` (default on macOS/Windows) runs Playwright workers directly on the host machine with native localhost access, while `container` (default on Linux) keeps workers inside Docker with `--network=host`. Users can override via `VERFIX_BROWSER_MODE=host|container`.
+  - Hybrid mode solves localhost networking issues on macOS/Windows where Docker containers cannot reach host services without a proxy.
+  - On container start, the CLI automatically extracts worker files from the Docker image, installs Playwright Chromium locally, and spawns a dedicated local worker process.
+  - New `--show-browser` flag on `verfix start` and `verfix run` enables visible browser window for debugging (headful mode).
+- **Slim Server Image (`verfix-server-slim`):** A new lightweight Docker image built on SQLite (no PostgreSQL dependency) that CLI automatically selects when running in host browser mode on macOS/Windows, reducing resource overhead.
+- **Pluggable Database Backend:** Refactored the Go API to a `Store` interface with two implementations — PostgreSQL (full image, existing behavior) and SQLite (slim image, embedded). This decouples the API from a specific database driver.
+- **Local Worker Lifecycle Management:** The CLI now manages local worker processes with proper PID tracking, auto-detection of stale workers, headful/headless mode switching, graceful shutdown (`verfix stop`), and artifact directory bind-mounting for shared access between host workers and the container.
+- **Update Checker Browser-Mode Awareness:** The NPM and Docker image update-checker now queries the correct image tag based on the active browser mode (slim vs. full image).
+
+### Fixed
+- **Localhost Networking on macOS/Windows:** Replaced the previous CLI TCP proxy approach with hybrid browser mode, providing a more robust and maintainable solution to Docker networking restrictions.
+- **Port Conflicts on Host Redis Detection:** The CLI now detects if Redis is already running on the host at port 6379 before mapping container ports, preventing "port is already allocated" errors.
+
+## [0.2.7] - 2026-06-20
+
+### Added
+- **Anonymous Telemetry & Analytics:** Integrated privacy-first telemetry with PostHog to track usage metrics for CLI initialization, diagnostic checking, container startups, and verification runs.
+  - Automatically respects standard `DO_NOT_TRACK` and `VERFIX_TELEMETRY=off` environment variables.
+  - Uses an anonymous tracking identifier generated once and stored in `~/.verfix/.machine-id` (no PII, hostname, or system paths collected).
+  - Shows a clear, transparent, one-time privacy notice on the first execution.
+  - Telemetry works completely asynchronously on lazy-loaded paths, ensuring zero execution block.
+- **Telemetry Documentation:** Added a comprehensive Telemetry & Privacy developer documentation guide.
+
+## [0.2.6] - 2026-06-20
+
+### Added
+- **Non-Interactive Setup Wizard Mode (`--yes` / `-y`):** Added support to `verfix init` for unattended execution using flags or environment variables. Particularly useful for automated environments, CI/CD pipelines, and AI coding agents.
+- **Provider Auto-Detection:** Automatically detect AI providers (OpenAI, Anthropic, Gemini, OpenRouter) based on the format of the provided API key.
+- **Agent Setup Command (`verfix agent-setup`):** A new command outputting machine-readable JSON instructions for AI coding agents to bootstrap Verfix.
+- **Graceful Docker Degradation:** Init wizard will warn and continue configuring if Docker is not installed or running, instead of hard failing.
+- **Dry-run Mode (`--dry-run`):** Validate settings and preview the generated configurations as JSON without writing files.
+
 ## [0.2.5] - 2026-06-16
 
 ### Added
