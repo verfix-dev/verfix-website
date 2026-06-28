@@ -9,6 +9,22 @@ For the full detailed commit history and changes, visit the [full CHANGELOG on G
 
 ---
 
+## v0.2.10 (2026-06-27)
+
+### Added
+- **Redis Queue for Job Processing**: Replaced in-memory job queue with Redis-backed queue for reliable, persistent job processing across container restarts.
+- **Broker Pattern in Go API**: Introduced a pluggable `Broker` interface supporting both in-memory and Redis queue backends, providing resilience and future extensibility.
+
+### Changed
+- Updated base Docker images for both the full (`verfix-server`) and slim (`verfix-server-slim`) images with the latest security patches.
+
+### Fixed
+- **Cross-Platform Worker Extraction**: Fixed worker extraction from Docker images on macOS and Windows — now correctly extracts and runs workers natively on the host with proper Playwright Chromium installation.
+- **Redis Connection Stability**: Fixed `MaxRetriesPerRequestError` in Redis adapter connection handling, improving reliability during host Redis detection.
+- **`localhost` Resolution Bug**: Fixed an IPv6 binding issue where `localhost` could resolve to `::1` on certain macOS/Windows configurations, causing connection failures to host services.
+
+---
+
 ## v0.2.9 (2026-06-22)
 
 ### Fixed

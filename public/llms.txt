@@ -13,8 +13,10 @@ npx verfix init
 ## Quickstart
 verfix init                                    # interactive setup wizard
 verfix start                                   # start the Docker runtime
+verfix start --show-browser                    # start with visible browser (debugging)
 verfix flows                                   # list available flows
 verfix run --flow <id> --output json           # run a specific flow
+verfix run --flow <id> --show-browser          # run with visible browser (debugging)
 verfix run --output json                       # run all flows
 verfix stop                                    # stop the runtime
 
@@ -53,11 +55,6 @@ verfix stop                                    # stop the runtime
 - no_console_errors     — No console.error() calls during flow
 - network_request_success — Network request to URL pattern returned 2xx
 
-## Execution modes
-- strict      — Deterministic, no AI. Best for CI/CD.
-- assisted    — Strict first, semantic + AI fallback if selector breaks. Best for active development.
-- exploratory — Natural language task, AI navigates. Not CI-grade.
-
 ## When to use Verfix
 After editing React components, forms, routes, buttons, or any UI code that affects user flows.
 
@@ -94,7 +91,19 @@ else:
 
 ## Requirements
 - Docker Desktop (running)
-- Node.js 18+
+- Node.js 20.20.0+
+
+## Hybrid Browser Mode
+Verfix uses a dual browser execution model:
+- **Host mode** (default on macOS/Windows): Workers run natively on the host machine for direct localhost access. Uses the slim server image (`verfix-server-slim`) with SQLite.
+- **Container mode** (default on Linux): Workers run inside Docker with `--network=host`. Uses the full server image with PostgreSQL.
+- Override via `VERFIX_BROWSER_MODE=host|container`.
+- Use `--show-browser` flag on `start` or `run` for a visible headful browser window.
+
+## Execution modes
+- strict      — Deterministic, no AI. Best for CI/CD.
+- assisted    — Strict first, semantic + AI fallback if selector breaks. Best for active development.
+- exploratory — Natural language task, AI navigates. Not CI-grade.
 
 ## Runtime defaults
 - Dashboard: http://localhost:3610

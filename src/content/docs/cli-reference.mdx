@@ -116,9 +116,16 @@ Prints JSON with setup information and bootstrap instructions. Useful for AI age
 
 ```bash
 verfix start
+verfix start --show-browser   # Open a visible browser window for debugging
 ```
 
-Pulls the Docker image if missing, starts the container, and waits for the health check to pass. Prints the API and Dashboard URLs on success.
+Pulls the Docker image (slim image on macOS/Windows, full image on Linux) if missing, starts the container, and waits for the health check to pass. Prints the API and Dashboard URLs on success.
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--show-browser` | Run browser in headful mode — opens a visible browser window for debugging. Default: headless. |
 
 If the runtime is already running, it reports the current ports without restarting.
 
@@ -272,6 +279,7 @@ verfix run [options]
 | `--dashboard <url>` | Dashboard base URL for timeline links |
 | `--timeout <ms>` | Timeout in milliseconds. Default: `15000` |
 | `--retries <n>` | Number of retries on failure. Default: `2` |
+| `--show-browser` | Run browser in headful mode — opens a visible browser window for debugging. Default: headless. |
 
 **JSON output contract:**
 
@@ -298,7 +306,7 @@ verfix run [options]
 - `1` — one or more assertions failed or execution error
 
 <Aside type="tip">
-On Mac/Windows, Verfix automatically rewrites `localhost` → `host.docker.internal` in the target URL so Playwright inside the container can reach your app.
+On Mac/Windows, Verfix runs Playwright workers natively on the host machine (via hybrid host mode), so `localhost` directly resolves to your app. On Linux, workers run inside the container with `--network=host`. Set `VERFIX_BROWSER_MODE=container` to force container-mode workers on Mac/Windows, or `VERFIX_BROWSER_MODE=host` to force host-mode on Linux.
 </Aside>
 
 **Examples:**

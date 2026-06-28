@@ -5,9 +5,14 @@ description: Run the Verfix server stack yourself with Docker. Full docker run c
 
 import { Aside } from '@astrojs/starlight/components';
 
-The Verfix runtime is distributed as a single Docker image that contains all services: the Go API, Playwright workers, PostgreSQL, and Redis.
+The Verfix runtime is distributed as two Docker images:
 
-Image: `ghcr.io/verfix-dev/verfix-server:latest`
+| Image | Database | Workers | Use case |
+|-------|----------|---------|----------|
+| `ghcr.io/verfix-dev/verfix-server:latest` | PostgreSQL | In-container (Linux) | Full stack for Linux, CI/CD, and server deployments |
+| `ghcr.io/verfix-dev/verfix-server-slim:latest` | SQLite (embedded) | On host (macOS/Windows) | Lightweight image for local development on Mac/Windows with host-mode workers |
+
+The CLI automatically selects the correct image based on your platform and browser mode. This guide covers the full image (`verfix-server`).
 
 ---
 
