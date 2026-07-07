@@ -3,7 +3,9 @@ title: Failure Taxonomy
 description: Every FailureType from workers/src/assertions/types.ts — causes, fix_hint patterns, and how to fix them.
 ---
 
-Every failed assertion produces a `failure_type` field in the output. This is the canonical `FailureType` union from `workers/src/assertions/types.ts`.
+import { Aside } from '@astrojs/starlight/components';
+
+Every failed assertion produces a `failure_type` field in the output. This is the canonical `FailureType` union from `workers/src/assertions/types.ts`. It has been stable since early releases — adding a new failure type requires a design discussion, so agents can rely on this list not silently growing.
 
 ```typescript
 export type FailureType =
@@ -237,13 +239,15 @@ Each item in the `failures[]` array in the JSON output:
 ```typescript
 {
   type: FailureType;        // one of the types above
+  flow?: string;            // the flow id that produced this failure
+  assertion?: string;       // the assertion type that failed
   selector?: string;        // the selector that failed (if applicable)
   detail?: string;          // raw error message from Playwright
   fix_hint?: string;        // actionable hint for the agent
 }
 ```
 
-Full `AssertionResult` shape (in `raw.assertions[]`):
+Full `AssertionResult` shape (available via `verfix run --full`, or `raw.assertions[]`):
 
 ```typescript
 {
@@ -257,3 +261,16 @@ Full `AssertionResult` shape (in `raw.assertions[]`):
   fix_hint?: string;
 }
 ```
+
+<Aside type="note">
+`verfix run` also uses **exit code `2`** for setup errors that never reach an assertion — a
+missing config file, an unknown flow id, a missing `${VAR}` environment variable. This is distinct
+from exit code `1` (one or more assertions failed) so agents and CI can tell "the app is broken"
+apart from "the verification job itself is misconfigured."
+</Aside>
+
+<Aside type="note">
+A `source_edit_blocked` / `source_edit_warning` finding is not an assertion failure — it comes from
+the Config-First Source Guard when project source was edited during the fix loop. See
+[Config-First Verification](/config-first-verification/) for what it means and how to resolve it.
+</Aside>

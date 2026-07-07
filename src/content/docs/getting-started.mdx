@@ -1,14 +1,20 @@
 ---
 title: Getting Started
-description: Install Verfix, run verfix init, and verify your first browser flow in under 5 minutes.
+description: Install Verfix and verify your first browser flow in under 2 minutes. Local-first — no Docker required.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
+<Aside type="tip">
+Verfix is **local-first**. `verfix run` executes entirely in a single Node.js process on your
+machine — no Docker, no queue, no cloud account. The one-time Docker **server runtime** is opt-in
+(`--server`) and only needed for the future hosted CI product — see [Self-Hosting](/self-hosting/).
+</Aside>
+
 ## Prerequisites
 
-- **Docker Desktop** — [download here](https://www.docker.com/products/docker-desktop/). Must be running before you use Verfix.
-- **Node.js 20.20.0+** — `node --version` to check.
+- **Node.js 20+** — `node --version` to check. That's the whole list.
+- The first run downloads Chromium (~130MB, one-time, cached in `~/.cache/ms-playwright`).
 
 ---
 
@@ -32,64 +38,73 @@ verfix --version
 
 ---
 
-## Start the runtime
-
-Verfix runs as a Docker container with Playwright workers, a Go API, and Redis. The CLI manages its lifecycle.
-
-On **macOS and Windows**, Verfix runs a lightweight slim server (`verfix-server-slim` with SQLite) in Docker and executes browser workers **natively on your host machine** — giving workers direct localhost access to your running app.
-
-On **Linux**, everything runs inside a single Docker container with host networking (`verfix-server` with PostgreSQL).
-
-```bash
-verfix start
-```
-
-On first run, this pulls the appropriate Docker image (~2 min on a fast connection). Subsequent starts are instant.
-
-<Aside type="tip">
-Use `verfix start --show-browser` to run the browser in headful mode — a visible window appears so you can watch every click, type, and navigation in real time.
-</Aside>
-
-When healthy, you'll see:
-
-```
-✓ Verfix runtime is running
-    API:       http://localhost:3611
-    Dashboard: http://localhost:3610
-```
-
-<Aside type="note">
-Ports 3610 and 3611 are the defaults. If occupied, Verfix automatically tries the next pair (3612/3613, 3614/3615, ...). Resolved ports persist in `.verfix/runtime.json`.
-</Aside>
-
----
-
 ## Init your project
 
 Run this inside your web app's directory:
 
 ```bash
 cd your-react-app
-verfix init
+npx verfix init
 ```
 
 The interactive wizard will:
 
-1. Confirm Docker is running and pull the image if needed
-2. Ask for your app's **base URL** (e.g. `http://localhost:3000`)
-3. Ask which **mode** to use (`strict`, `assisted`, or `exploratory`)
-4. Ask which **flows** to scaffold (login, dashboard-load, signup, checkout)
-5. Ask for your **AI API key** (required for Assisted/Exploratory mode)
-6. Write `verfix.config.json` in your project root
-7. Generate or update `AGENTS.md` so coding agents know how to use Verfix
+1. Detect your app's **base URL** (e.g. `http://localhost:3000`)
+2. Ask which **mode** to use — default `strict` (fully deterministic, no AI key needed)
+3. Ask for an AI key only if you picked `assisted`/`exploratory`
+4. Make sure Chromium is available (downloads it once if missing)
+5. Write an empty `verfix.config.json` (`flows: []`) in your project root
+6. Generate or update `AGENTS.md` (plus a `.verfix/INSTRUCTIONS.md` reference file) so coding
+   agents know how to use Verfix
 
 <Aside type="tip">
-For non-interactive environments (CI/CD or AI agents), use `verfix init --yes` with flags or environment variables. See the CLI Reference for all available options.
+There's no flow-scaffolding step and no preset flow library — `verfix init` doesn't know your
+app's routes or components. It hands the agent an empty flow library and the full reference at
+`.verfix/INSTRUCTIONS.md`, and the **agent writes the first real flow** by reading your source.
+See [Config-First Verification](/config-first-verification/) and the example below.
 </Aside>
+
+<Aside type="tip">
+For non-interactive environments (CI/CD or AI agents), use `verfix init --yes`. Strict mode needs
+zero credentials — an AI key is only required for `assisted`/`exploratory` modes. See the
+[CLI Reference](/cli-reference/) for all flags and environment variables.
+</Aside>
+
+There is no runtime to start and nothing to keep running — `verfix run` executes the browser
+engine in-process and exits when it's done.
 
 ---
 
-## Run your first flow
+## Write your first flow
+
+`verfix.config.json` starts with an empty `flows: []` — Verfix doesn't know your app's routes or
+components, so it doesn't guess at them. This is normally the agent's job (read the source, find
+the real selector, write the flow — see [Config-First Verification](/config-first-verification/)),
+but for a first run by hand, add one directly:
+
+```json
+{
+  "baseUrl": "http://localhost:3000",
+  "mode": "strict",
+  "flows": [
+    {
+      "id": "login",
+      "steps": [
+        { "action": "navigate", "url": "/login" },
+        { "action": "type", "selector": "[data-testid=email]", "value": "test@example.com" },
+        { "action": "type", "selector": "[data-testid=password]", "value": "password123" },
+        { "action": "click", "selector": "[data-testid=submit]" }
+      ],
+      "assertions": [
+        { "type": "url_contains", "value": "/dashboard" },
+        { "type": "no_console_errors" }
+      ]
+    }
+  ]
+}
+```
+
+## Run it
 
 ```bash
 verfix run --flow login --output json
@@ -101,7 +116,11 @@ Example output on **pass**:
 {
   "passed": true,
   "failures": [],
-  "timeline_url": "http://localhost:3610/?executionId=exec_abc123",
+  "timeline_url": null,
+  "trace_path": ".verfix/runs/exec_abc123_trace.zip",
+  "show_command": "verfix show exec_abc123",
+  "duration_ms": 3120,
+  "retry_count": 0,
   "exit_code": 0,
   "execution_id": "exec_abc123"
 }
@@ -115,36 +134,55 @@ Example output on **failure**:
   "failures": [
     {
       "type": "selector_not_found",
+      "flow": "login",
+      "assertion": "selector_visible",
       "selector": "[data-testid=submit]",
       "detail": "Selector not found after 15000ms",
       "fix_hint": "Selector \"[data-testid=submit]\" not found in DOM. Add a stable data-testid or update the selector."
     }
   ],
-  "timeline_url": "http://localhost:3610/?executionId=exec_xyz789",
+  "timeline_url": null,
+  "trace_path": ".verfix/runs/exec_xyz789_trace.zip",
+  "show_command": "verfix show exec_xyz789",
   "exit_code": 1,
   "execution_id": "exec_xyz789"
 }
 ```
 
-The CLI exits with code `0` on pass and `1` on failure — CI-friendly by default.
+The CLI exits `0` on pass, `1` on a verification failure, and `2` on a setup error (bad config,
+missing flow, etc.) — predictable exit codes for CI and agent loops.
 
 ---
 
-## Open the execution timeline
+## Inspect the recorded trace
 
-Copy the `timeline_url` from the JSON output and open it in your browser:
+Every run persists a full Playwright trace (screenshots, network requests, console output) plus a
+JSON summary under `.verfix/runs/` (newest 20 runs kept). Open the newest one:
 
+```bash
+verfix show
 ```
-http://localhost:3610/?executionId=exec_abc123
+
+Or a specific run by its execution id:
+
+```bash
+verfix show exec_abc123
 ```
 
-The timeline shows:
-- Every browser action (click, type, navigate)
-- All assertion results with pass/fail status and duration
-- Console logs (errors highlighted)
-- Network requests with status codes
-- Screenshots on failure
-- Playwright trace artifacts
+Print a run's console log or network requests straight to the terminal instead of opening the
+trace viewer:
+
+```bash
+verfix show --console
+verfix show exec_abc123 --network --output json
+```
+
+When a selector fails, dry-run replacement selectors against that run's saved DOM snapshot in
+about a second — instead of paying for a full re-run per guess:
+
+```bash
+verfix probe --selector "[data-testid=submit]" --text "Welcome back"
+```
 
 ---
 
@@ -162,20 +200,20 @@ verfix run --output json
 
 ---
 
-## Check runtime health
+## Check your setup
 
 ```bash
 verfix doctor
 ```
 
-Runs seven diagnostic checks:
-- Docker installed
-- Docker daemon running
-- Container running
-- API healthy
-- Dashboard reachable
-- `verfix.config.json` found
-- `AGENTS.md` found
+Checks Node version, `verfix.config.json` validity, `AGENTS.md`, Chromium install status, and app
+reachability. Docker is only checked (and only matters) if you're using `--server`.
+
+Validate your config without running anything:
+
+```bash
+verfix validate
+```
 
 ---
 
@@ -183,5 +221,6 @@ Runs seven diagnostic checks:
 
 - [CLI Reference](/cli-reference/) — all commands and flags
 - [Config Reference](/config-reference/) — every field in `verfix.config.json`
+- [Config-First Verification](/config-first-verification/) — why agents should fix flows, not source
 - [Agent Integration](/agent-integration/) — wiring Verfix into agent workflows
-- [Execution Modes](/execution-modes/) — when to use strict vs. assisted
+- [Execution Modes](/execution-modes/) — when to use strict vs. assisted vs. exploratory

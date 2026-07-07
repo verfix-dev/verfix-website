@@ -1,37 +1,41 @@
 ---
-title: Self-Hosting
-description: Run the Verfix server stack yourself with Docker. Full docker run command, environment variables, volumes, and docker-compose example.
+title: Server Mode (Self-Hosting)
+description: The opt-in Docker server runtime — API, queue, and timeline dashboard — for teams that want a shared, centrally observable Verfix deployment.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-The Verfix runtime is distributed as two Docker images:
+<Aside type="note">
+This page describes the **opt-in** Docker server runtime. It is not required to use Verfix —
+by default, `verfix run` executes entirely in a single Node.js process on your machine with no
+Docker, no queue, and no database. See [Getting Started](/getting-started/) for the default,
+local-first path. Server mode is the foundation of a future hosted CI product; today it's useful
+for teams that want a shared, centrally observable deployment.
+</Aside>
 
-| Image | Database | Workers | Use case |
-|-------|----------|---------|----------|
-| `ghcr.io/verfix-dev/verfix-server:latest` | PostgreSQL | In-container (Linux) | Full stack for Linux, CI/CD, and server deployments |
-| `ghcr.io/verfix-dev/verfix-server-slim:latest` | SQLite (embedded) | On host (macOS/Windows) | Lightweight image for local development on Mac/Windows with host-mode workers |
+Server mode packages a Go API, a Redis-backed job queue, containerized Playwright workers, and a
+Next.js execution-timeline dashboard into a single Docker image.
 
-The CLI automatically selects the correct image based on your platform and browser mode. This guide covers the full image (`verfix-server`).
+| Image | Database | Use case |
+|-------|----------|----------|
+| `ghcr.io/verfix-dev/verfix-server:latest` | PostgreSQL | Shared team deployments, CI/CD, server hosting |
+
+Opt in per-command with `--server`, or set `VERFIX_RUNNER=server` in `.verfix/.env` to make it the
+default for a project.
 
 ---
 
 ## Quick start (single container)
 
-The CLI manages this for you automatically. If you want to run the container manually:
-
 ```bash
 docker run -d \
   --name verfix \
-  -p 3610:3610 \
-  -p 3611:3611 \
-  -v verfix-data:/var/lib/postgresql/15/main \
-  -v verfix-artifacts:/app/workers/artifacts \
-  --add-host host.docker.internal:host-gateway \
+  --network=host \
+  -e VERFIX_HOST_NETWORK=1 \
   ghcr.io/verfix-dev/verfix-server:latest
 ```
 
-After starting, verify the runtime is healthy:
+Verify the runtime is healthy:
 
 ```bash
 curl http://localhost:3611/api/v1/health
@@ -43,6 +47,13 @@ Expected response:
 { "status": "healthy" }
 ```
 
+Then point the CLI at server mode:
+
+```bash
+verfix init --server
+verfix run --server --flow login --output json
+```
+
 ---
 
 ## Ports
@@ -52,7 +63,7 @@ Expected response:
 | `3610` | Dashboard | Next.js execution timeline UI |
 | `3611` | API | Go/Fiber REST API |
 
-If ports 3610/3611 are occupied, the CLI automatically tries the next pair (3612/3613, 3614/3615, ...). Manually specify ports with the `-p` flag.
+If ports 3610/3611 are occupied, the CLI automatically tries the next pair (3612/3613, 3614/3615, ...).
 
 ---
 
@@ -71,55 +82,41 @@ Data persists across container restarts when these volumes are mounted.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OPENAI_API_KEY` | — | Required for Assisted and Exploratory modes. Set during `verfix init`. |
-| `OPENAI_MODEL` | `gpt-5.5` | AI model to use for assisted healing and exploratory mode. |
+| `OPENAI_API_KEY` / provider key | — | Required for Assisted and Exploratory modes. |
+| `AI_MODEL` | provider default | AI model used for semantic healing and exploratory mode. |
 | `MAX_CONCURRENCY` | `3` | Maximum number of parallel Playwright jobs. |
 | `DATABASE_URL` | Internal | PostgreSQL connection string (pre-configured inside the container). |
 | `REDIS_URL` | Internal | Redis connection string (pre-configured inside the container). |
 
-Pass environment variables with `-e` flags:
-
 ```bash
 docker run -d \
   --name verfix \
-  -p 3610:3610 \
-  -p 3611:3611 \
+  --network=host \
+  -e VERFIX_HOST_NETWORK=1 \
   -e OPENAI_API_KEY=sk-... \
-  -e OPENAI_MODEL=gpt-5.5 \
   -e MAX_CONCURRENCY=5 \
   -v verfix-data:/var/lib/postgresql/15/main \
   -v verfix-artifacts:/app/workers/artifacts \
-  --add-host host.docker.internal:host-gateway \
   ghcr.io/verfix-dev/verfix-server:latest
 ```
-
-<Aside type="note">
-The `--add-host host.docker.internal:host-gateway` flag is required on Linux so the container can reach your app running on the host machine. Docker Desktop on Mac and Windows includes this automatically.
-</Aside>
 
 ---
 
 ## docker-compose.yml for teams
-
-For teams running Verfix on a shared machine or staging server:
 
 ```yaml
 services:
   verfix:
     image: ghcr.io/verfix-dev/verfix-server:latest
     container_name: verfix
-    ports:
-      - "3610:3610"
-      - "3611:3611"
+    network_mode: host
     environment:
+      VERFIX_HOST_NETWORK: "1"
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.5}
       MAX_CONCURRENCY: ${MAX_CONCURRENCY:-3}
     volumes:
       - verfix-data:/var/lib/postgresql/15/main
       - verfix-artifacts:/app/workers/artifacts
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3611/api/v1/health"]
@@ -147,23 +144,19 @@ OPENAI_API_KEY=sk-... docker compose up -d
 curl http://localhost:3611/api/v1/health
 ```
 
-A healthy runtime returns `200 OK` with:
-
-```json
-{ "status": "healthy" }
-```
+A healthy runtime returns `200 OK` with `{ "status": "healthy" }`.
 
 ---
 
 ## Updating
 
-Pull the latest image and restart:
+```bash
+verfix update --server
+```
+
+Or manually:
 
 ```bash
-# Via CLI (recommended)
-verfix update
-
-# Manually
 docker pull ghcr.io/verfix-dev/verfix-server:latest
 docker stop verfix && docker rm verfix
 docker run -d ... # same flags as before
@@ -171,17 +164,35 @@ docker run -d ... # same flags as before
 
 ---
 
-## CLI with remote runtime
+## CLI with a remote server runtime
 
 If the runtime is running on a remote machine, point the CLI at it:
 
 ```bash
-verfix run --flow login --dashboard http://your-server:3610 --output json
+verfix run --server --flow login --dashboard http://your-server:3610 --output json
 ```
 
-The CLI reads `VERFIX_API_URL` from the environment if set:
+Or set `VERFIX_API_URL`:
 
 ```bash
 export VERFIX_API_URL=http://your-server:3611
-verfix run --flow login --output json
+verfix run --server --flow login --output json
+```
+
+---
+
+## CI with server mode
+
+Local mode is the recommended default in CI (no containers to start or wait on — see
+[Agent Integration](/agent-integration/)). If you specifically need to exercise the server runtime
+itself:
+
+```yaml
+- name: Start Verfix server runtime
+  run: |
+    docker run -d --network=host -e VERFIX_HOST_NETWORK=1 ghcr.io/verfix-dev/verfix-server:latest
+    sleep 15 # wait for services
+
+- name: Run verification
+  run: npx verfix run --server --output json
 ```

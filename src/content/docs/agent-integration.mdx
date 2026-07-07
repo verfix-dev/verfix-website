@@ -5,11 +5,32 @@ description: How AI coding agents consume Verfix output, the retry loop pattern,
 
 import { Aside } from '@astrojs/starlight/components';
 
-Verfix is built for AI coding agents. This page explains everything an agent needs to use Verfix effectively — from the output contract to the retry loop pattern.
+Verfix is built for AI coding agents — agent-first, not agent-adjacent. Everything from writing
+the flow to diagnosing a failure to deciding what to fix is designed to be done by the agent, not
+a human filling in a config wizard. This page explains everything an agent needs to use Verfix
+effectively — from the output contract to the retry loop pattern.
 
 <Aside type="tip">
 AI assistants can read `verfix.dev/llms.txt` for a concise machine-readable reference. This page contains the full guide.
 </Aside>
+
+---
+
+## Loop engineering: Verfix as the verifier
+
+"Loop engineering" is the practice of designing the goal, verifier, state, stop condition, and
+escalation rules that let an agent iterate safely — instead of prompting it turn by turn. Verfix
+is the **verifier** half of that loop for UI code, so the model doing the generating isn't also
+grading its own work:
+
+| Loop-contract piece | What Verfix provides |
+|---|---|
+| Goal | The flow — written by the agent from the app's real source, not a guessed template |
+| Verifier | Typed assertions and an 8-value failure taxonomy — deterministic pass/fail |
+| State | `failures[]`, `fix_hint`, `source_changes` — carried between iterations as structured JSON |
+| Stop condition | Exit codes `0`/`1`/`2` |
+| Budget | Per-flow `timeout`/`retries`, plus an AI rate-limit circuit breaker |
+| Escalation | After repeated failures, surface `show_command` to a human instead of looping forever |
 
 ---
 
@@ -18,13 +39,14 @@ AI assistants can read `verfix.dev/llms.txt` for a concise machine-readable refe
 The agent loop with Verfix:
 
 1. Check if Verfix is initialized: `verfix agent-setup --output json`
-2. If not initialized, run: `verfix init --yes` with required flags
+2. If not initialized, run: `verfix init --yes` — strict mode needs zero credentials, so this works with no flags at all. This writes an empty `verfix.config.json` (`flows: []`) — there's no preset flow library to scaffold.
 3. Agent makes a UI change (edits a component, adds a route, etc.)
-4. Agent runs `verfix run --flow <id> --output json`
-5. Agent reads the JSON output:
+4. Agent picks the flow that covers the change, or **writes a new one** by reading the component's source for its real selectors — see [Config-First Verification](/config-first-verification/)
+5. Agent runs `verfix run --flow <id> --output json`
+6. Agent reads the JSON output:
    - `"passed": true` → change is verified, proceed
-   - `"passed": false` → read `failures[].fix_hint`, fix the issue, go to step 3
-6. If the agent cannot fix after N retries, surface `timeline_url` to the human
+   - `"passed": false` → **fix the flow or the app** (never bolt on a `data-testid` just to pass), read `failures[].fix_hint`, go to step 3
+7. If the agent cannot fix after N retries, surface `show_command` (`verfix show <id>`) to the human for trace review
 
 ### Agent setup command
 
@@ -34,30 +56,37 @@ For AI agents that need to bootstrap Verfix programmatically:
 verfix agent-setup
 ```
 
-This outputs JSON with setup instructions. If `initialized` is `false`, run:
+This outputs JSON with setup instructions. Strict mode (the default) needs no key at all:
 
 ```bash
-verfix init --yes --ai-key $AI_API_KEY
+verfix init --yes --base-url http://localhost:3000
+```
+
+To enable `assisted`/`exploratory` modes, supply an AI key:
+
+```bash
+verfix init --yes --mode assisted --ai-key $AI_API_KEY
 ```
 
 ---
 
-## AGENTS.md
+## AGENTS.md + .verfix/INSTRUCTIONS.md
 
-`verfix init` generates an `AGENTS.md` file in your project root. This file tells coding agents (Claude, Cursor, Codex, etc.) how to use Verfix in this specific project.
+`verfix init` writes a compact **`AGENTS.md`** stub (~30 lines: identity, the config-first rule,
+and the core commands) plus the full reference at **`.verfix/INSTRUCTIONS.md`** (config schema,
+every step action and assertion type, the flow-selection guide, and the complete output contract).
+The stub points at the full file so it's loaded on demand instead of bloating an `AGENTS.md` that
+may already exist for other tools.
 
-**What it contains:**
-- The base URL of your app
-- Available flows and their IDs
-- Instructions for the retry loop
-- The failure taxonomy
-- The full output contract
+`AGENTS.md` is the standard read natively by Codex, Cursor, GitHub Copilot, Kilo, opencode, Zed,
+Jules, and 20+ other agents. For tools that don't read it natively, `verfix init` mirrors the same
+stub into any detected `CLAUDE.md` (Claude Code), `.github/copilot-instructions.md` (Copilot IDE),
+or `.clinerules/verfix.md` (Cline) — one generator, no duplicated content across platforms.
 
-**Location:** `./AGENTS.md` (project root)
+**Location:** `./AGENTS.md` + `./.verfix/INSTRUCTIONS.md` (project root)
 
-Agents that read this file (Claude Code, Cursor, etc.) will automatically use Verfix after UI changes without being explicitly told to.
-
-You can customize the generated `AGENTS.md` — for example, to add project-specific instructions about which flows to run after which types of changes.
+You can customize the generated files — for example, to add project-specific instructions about
+which flows to run after which types of changes.
 
 ---
 
@@ -103,22 +132,32 @@ async function runVerfix(flowId: string) {
 
 ## Output contract
 
-The full shape of `verfix run --output json`:
+The default (summarized) shape of `verfix run --output json`:
 
 ```typescript
 {
-  // Top-level result
   passed: boolean;               // true if all assertions passed
   failures: FailureDetail[];     // array of failed assertions (empty on pass)
-  timeline_url: string;          // link to execution timeline dashboard
-  exit_code: 0 | 1;             // 0 = pass, 1 = fail
+  timeline_url: string | null;   // dashboard link — only populated in --server mode
+  trace_path: string;            // path to the recorded Playwright trace zip
+  show_command: string;          // exact `verfix show <id>` command for this run
+  detail_commands: {              // exact commands that return console/network detail
+    console: string;
+    network: string;
+  };
+  duration_ms: number;
+  retry_count: number;           // > 0 signals crash-retries happened
+  exit_code: 0 | 1;              // 0 = pass, 1 = fail (2 is used for setup errors, before this JSON is even produced)
   execution_id: string;          // unique execution ID (exec_xxx)
-  raw: ExecutionResult;          // full raw API response (see below)
+  skipped_optional_steps?: object[]; // present when any optional step was skipped
+  source_changes?: SourceChanges; // present when project/config files changed during the verify loop — see Config-First Verification
 }
 
 // Each item in failures[]
 {
   type: FailureType;             // see Failure Taxonomy
+  flow?: string;                 // the flow id that produced this failure
+  assertion?: string;            // the assertion type that failed
   selector?: string;             // the selector that failed (if applicable)
   detail?: string;               // raw error message from Playwright
   fix_hint?: string;             // actionable hint for the agent to fix the code
@@ -136,7 +175,16 @@ type FailureType =
   | 'assertion_failed';
 ```
 
-### Full `raw` ExecutionResult shape
+<Aside type="tip">
+The summary is intentionally the default — the full event timeline was ~93% of the payload size
+and agents paid for it on every fix-loop iteration for detail they rarely needed. Nothing
+non-nominal is silent in the summary: failures always carry `flow`/`assertion`, skipped optional
+steps are always listed, and `source_changes` always appears when it's not clean. Pull full detail
+on demand with `verfix show <id> --console`/`--network`, or pass `--full` to `verfix run` for the
+complete raw event timeline in one shot.
+</Aside>
+
+### Full raw `ExecutionResult` shape (`verfix run --full`)
 
 ```typescript
 {
@@ -152,7 +200,6 @@ type FailureType =
     screenshot?: string;
     failed_screenshot?: string;
     trace?: string;
-    har?: string;
     console_log?: string;
     network_log?: string;
     dom_snapshot?: string;
@@ -203,14 +250,14 @@ When a failure occurs, the `fix_hint` tells the agent exactly what to do. Here i
 
 | `type` | What it means | Agent action |
 |--------|--------------|--------------|
-| `selector_not_found` | Element not in DOM | Add `data-testid` to the element in code |
+| `selector_not_found` | Element not in DOM | Find the element's real selector in source and target it directly or via the `selectors` alias map — add `data-testid` only as a last resort |
 | `selector_not_visible` | Element hidden | Fix CSS or ensure the element is shown before assertion |
 | `text_mismatch` | Wrong text on page | Update component text or wait for async data |
 | `url_mismatch` | Wrong URL after flow | Fix routing or check that prior steps succeeded |
 | `console_error` | JS error in browser | Fix the error logged to `console.error` |
 | `network_failure` | API returned non-2xx | Fix the backend endpoint or mock it |
 | `timeout` | Operation too slow | Increase timeout or fix the performance issue |
-| `assertion_failed` | Generic failure | Read `detail` and `timeline_url` for specifics |
+| `assertion_failed` | Generic failure | Read `detail` and open the trace with `show_command` for specifics |
 
 ---
 
@@ -221,10 +268,13 @@ When a failure occurs, the `fix_hint` tells the agent exactly what to do. Here i
 `verfix run` exits with:
 - `0` — all assertions passed
 - `1` — one or more assertions failed
+- `2` — a setup error (bad config, unknown flow, missing env var) — distinct from a real verification failure
 
 This makes it drop-in compatible with any CI system.
 
 ### GitHub Actions example
+
+Local mode needs only Node — no Docker services to start or wait on:
 
 ```yaml
 name: Verify UI
@@ -243,26 +293,35 @@ jobs:
         with:
           node-version: 20
 
-      - name: Start app
-        run: npm run dev &
-        # Wait for your app to be ready
+      # Cache the one-time Chromium download between runs
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}
 
       - name: Install Verfix
         run: npm install -g verfix
 
-      - name: Start Verfix runtime
-        run: verfix start
+      - name: Start app
+        run: npm run dev &
+        # Wait for your app to be ready
 
       - name: Run verification flows
         run: verfix run --output json
+        # strict mode is fully deterministic — no AI key needed
 
-      - name: Upload timeline on failure
+      - name: Upload traces on failure
         if: failure()
-        run: echo "Open timeline_url from the JSON output above"
+        uses: actions/upload-artifact@v4
+        with:
+          name: verfix-traces
+          path: .verfix/runs/
 ```
 
 <Aside type="note">
-Verfix requires Docker to be available in the CI environment. On GitHub Actions, use `ubuntu-latest` which includes Docker. The runtime image pulls from `ghcr.io/verfix-dev/verfix-server:latest`.
+Local mode has no Docker requirement at all — any CI runner with Node.js 20+ works. If you
+specifically need the opt-in Docker server runtime (e.g. testing the hosted-product stack itself),
+see [Self-Hosting](/self-hosting/) and pass `--server` to `verfix run`.
 </Aside>
 
 ---

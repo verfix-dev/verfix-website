@@ -1,6 +1,6 @@
 # Verfix — Full Reference
-> Browser verification runtime for AI-generated web apps
-> Version: 0.2.1
+> Local-first browser verification runtime for AI-generated web apps
+> Version: 0.3.6
 > License: Apache 2.0
 > Docs: https://verfix.dev/docs
 > Source: https://github.com/verfix-dev/verfix
@@ -10,17 +10,42 @@
 ## What is Verfix?
 
 Verfix is a local-first browser verification runtime for AI coding agents. It gives agents
-a deterministic environment to verify that UI changes actually work in a real browser.
+a deterministic environment to verify that UI changes actually work in a real browser —
+entirely in-process on Node.js, no Docker or cloud account required.
 
 Key properties:
-- Runs locally via Docker — no cloud required
-- Playwright-powered browser execution
+- Runs locally in a single Node.js process — no Docker, no services, no cloud
+- Playwright-powered browser execution; strict mode needs no AI key at all
 - Structured JSON output designed for agent consumption
-- Exit code 0 (pass) or 1 (fail) for CI integration
-- Execution timeline for human observability
+- Exit codes: 0 (pass), 1 (verification failure), 2 (setup error) — CI-friendly
+- Every run records a full Playwright trace for human observability
+- A git-baseline source guard flags/blocks agents rewriting app code to satisfy a broken selector
 
-Architecture:
-CLI → API (Go/Fiber) → Redis queue → Playwright Workers → PostgreSQL → CLI output
+Architecture (default, local mode):
+CLI (Node.js) → @verfix/engine (in-process, Playwright) → Browser → .verfix/runs/<id>.json + trace
+
+Architecture (opt-in, --server, foundation of a future hosted CI product):
+CLI → API (Go/Fiber) → Redis/BullMQ queue → Playwright Workers (container) → Postgres → Dashboard
+
+---
+
+## Loop Engineering: Verfix as the verifier
+
+Loop engineering is the practice of designing the goal, verifier, state, stop condition, and
+escalation rules that let an AI agent iterate safely — instead of prompting it turn by turn.
+Verfix is the verifier half of that loop for UI code, so the model generating the code isn't also
+grading its own work:
+
+  Goal          → the flow — written by the agent from the app's real source, not a template
+  Verifier      → typed assertions + an 8-value failure taxonomy — deterministic pass/fail
+  State         → failures[], fix_hint, source_changes — carried between iterations as JSON
+  Stop condition → exit codes 0 (pass) / 1 (verification failure) / 2 (setup error)
+  Budget        → per-flow timeout/retries, plus an AI rate-limit circuit breaker
+  Escalation    → after repeated failures, surface show_command to a human instead of looping
+
+Agent-first, not agent-adjacent: the agent writes the flow, runs it, classifies the failure,
+decides whether to fix the flow/config or the app (see Config-First Verification below), retries,
+and escalates only when stuck.
 
 ---
 
@@ -28,65 +53,76 @@ CLI → API (Go/Fiber) → Redis queue → Playwright Workers → PostgreSQL →
 
 ### verfix init
 Interactive setup wizard.
-- Checks Docker is installed and running
-- Pulls ghcr.io/verfix-dev/verfix-server:latest if missing
-- Prompts: base URL, mode, flows to scaffold, AI API key
-- Writes verfix.config.json
-- Generates AGENTS.md
-Options: --force (-f) — overwrite without prompting
+- Prompts: base URL, mode (default strict — no AI key needed), AI key (only if not strict)
+- Makes sure Chromium is available (downloads once, ~130MB, cached)
+- Writes verfix.config.json with an EMPTY flows: [] — no preset library, no scaffolding.
+  Flows are written by the coding agent on demand, by reading the app source.
+- Generates a compact AGENTS.md stub + full .verfix/INSTRUCTIONS.md reference
+  (mirrors the stub into CLAUDE.md / .github/copilot-instructions.md / .clinerules/verfix.md when detected)
+Options: --yes/-y (non-interactive), --ai-provider, --ai-model, --ai-key, --base-url, --mode,
+--skip-runtime, --skip-agent-files, --dry-run, --force/-f, --server (opt-in Docker server mode)
 
-### verfix start
-Starts the runtime container.
-Pulls image if missing. Waits for health check.
-Prints API (http://localhost:3611) and Dashboard (http://localhost:3610) URLs.
+### verfix run
+Runs a verification job. In-process by default — no runtime to start first.
+Options:
+  --flow <id> / -f       Flow ID to run
+  --url <url> / -u       Target URL
+  --task <task> / -t     Task description (required for exploratory mode without flows)
+  --mode <mode> / -m     strict | assisted | exploratory
+  --output <format> / -o pretty | json (default: json)
+  --config <file> / -c   Config file (default: ./verfix.config.json)
+  --full                 Include the raw ExecutionResult (full event timeline) in JSON output
+  --timeout <ms>         Timeout in ms (default: 15000)
+  --retries <n>          Retries on failure (default: 2)
+  --show-browser         Show the browser window (local mode)
+  --source-policy <p>    warn | block | off (overrides config sourceCodePolicy)
+  --reset-baseline       Reset the source-change baseline for this verify cycle
+  --skip-download        Fail fast instead of auto-downloading Chromium
+  --server               Run via the opt-in Docker server runtime
 
-### verfix stop
-Stops and removes the running container. Data preserved in Docker volumes.
+Exit codes: 0 = passed, 1 = verification failed, 2 = setup error
 
-### verfix status [executionId]
-Without executionId: shows container, API, and dashboard health.
-With executionId: shows execution status, passed/failed, duration.
-Options: --output pretty|json (default: pretty)
+### verfix show [executionId]
+Opens the recorded Playwright trace for a run (newest if no id given).
+Options: --console (print captured console log), --network (print captured network requests),
+--output pretty|json
 
-### verfix logs
-Tails the runtime container logs.
-Options: --tail <n> (default: 50)
+### verfix probe [executionId]
+Dry-run selectors/text against a run's saved end-of-run DOM snapshot (~1s vs a full run).
+Options: --selector/-s <selectors...>, --text/-t <texts...>, --config/-c <file>, --output/-o
+Exit 0 if every query matched, 1 if any missed.
 
-### verfix update
-Pulls latest image and restarts the container.
+### verfix validate
+Checks verfix.config.json for structural/semantic errors without running anything.
+Options: --config/-c <file>, --output/-o pretty|json
+
+### verfix install
+Downloads the Chromium browser separately from `verfix run` (one-time, ~130MB).
 
 ### verfix doctor
-Runs 7 diagnostic checks. Exits with count of failed checks.
-Checks: Docker installed, Docker daemon, container running, API healthy,
-dashboard reachable, verfix.config.json exists, AGENTS.md exists.
+Runs diagnostic checks (local mode): Node version, engine installed, Chromium installed,
+config valid, AGENTS.md present, app reachable, AI key/model valid if configured.
+Docker is informational only in local mode. Exits with count of failed checks.
 
 ### verfix flows
 Lists all flows defined in verfix.config.json.
 Options: --config <file>, --output pretty|json
 
-### verfix run
-Runs a verification job.
-Options:
-  --url <url>         Target URL
-  --task <task>       Task description
-  --config <file>     Config file (default: ./verfix.config.json)
-  --flow <id>         Flow ID to run
-  --mode <mode>       strict | assisted | smoke | exploratory
-  --output <format>   pretty | json (default: json)
-  --dashboard <url>   Dashboard base URL for timeline links
-  --timeout <ms>      Timeout in ms (default: 15000)
-  --retries <n>       Retries on failure (default: 2)
-
-Exit codes: 0 = passed, 1 = failed
-
 ### verfix list
-Lists recent verification executions.
+Lists recent local verification runs from .verfix/runs/.
+
+### verfix status
+Summarizes local setup: runner mode, config path, Chromium status, last run result.
+
+### verfix start / stop / logs / update
+No-ops in local mode (print what to do instead). Manage the opt-in Docker server runtime
+with --server (or VERFIX_RUNNER=server env var).
 
 ---
 
 ## Output Contract
 
-verfix run --output json returns:
+verfix run --output json returns (default, summarized):
 
 {
   "passed": boolean,
@@ -95,16 +131,28 @@ verfix run --output json returns:
       "type": "selector_not_found" | "selector_not_visible" | "text_mismatch" |
                "url_mismatch" | "console_error" | "network_failure" |
                "timeout" | "assertion_failed",
+      "flow": string | undefined,
+      "assertion": string | undefined,
       "selector": string | undefined,
       "detail": string | undefined,
       "fix_hint": string
     }
   ],
-  "timeline_url": "http://localhost:3610/?executionId=exec_xxx",
+  "timeline_url": string | null,   // null in local mode; populated only in --server mode
+  "trace_path": ".verfix/runs/exec_xxx_trace.zip",
+  "show_command": "verfix show exec_xxx",
+  "detail_commands": { "console": "...", "network": "..." },
+  "duration_ms": number,
+  "retry_count": number,
   "exit_code": 0 | 1,
   "execution_id": "exec_xxx",
-  "raw": { /* full ExecutionResult */ }
+  "skipped_optional_steps": [ /* present if any optional step was skipped */ ],
+  "source_changes": { /* present when project/config files changed during the verify loop */ }
 }
+
+Pass --full to get the complete raw ExecutionResult (full event timeline) instead of the summary.
+The summary is the default because the full timeline was ~93% of the payload size and agents paid
+for it on every fix-loop iteration; nothing non-nominal is silent in the summary.
 
 ---
 
@@ -112,7 +160,9 @@ verfix run --output json returns:
 
 selector_not_found
   - Meaning: CSS/testId selector matched zero elements in DOM
-  - Fix: Add data-testid attribute to the element; add wait_for_selector step
+  - Fix: Reuse the element's real selector from source (directly or via the `selectors` alias
+    map); add a `wait_for_selector` step if it renders after an async operation. Add a new
+    data-testid only as a last resort — see Config-First Verification below.
 
 selector_not_visible
   - Meaning: Element exists but is hidden (display:none, visibility:hidden, zero size)
@@ -128,11 +178,12 @@ url_mismatch
 
 console_error
   - Meaning: One or more console.error() calls detected during flow
-  - Fix: Fix the JS error in your application; check raw.console_logs for text
+  - Fix: Fix the JS error in your application; check the console log via `verfix show --console`
 
 network_failure
   - Meaning: A required network request returned non-2xx status
-  - Fix: Ensure backend is running; check raw.network_requests for URL/status
+  - Fix: Ensure backend is running; check network requests via `verfix show --network`; consider
+    `acceptStatuses` on the assertion if more than one status is a valid outcome
 
 timeout
   - Meaning: An operation exceeded configured timeout (default: 15000ms)
@@ -140,18 +191,24 @@ timeout
 
 assertion_failed
   - Meaning: Generic fallback — no more specific type applies
-  - Fix: Read detail field; open timeline_url for full replay
+  - Fix: Read the detail field; open the trace with `show_command` for full replay
+
+Exit code 2 (setup error, e.g. bad config, unknown flow, missing ${VAR}) is distinct from exit
+code 1 (a real verification failure) — check which one you got before treating it as an app bug.
 
 ---
 
 ## Config Schema (verfix.config.json)
 
 Top-level:
-  baseUrl: string (required) — app base URL
-  mode: "strict" | "assisted" | "smoke" | "exploratory" (default: "strict")
+  baseUrl: string (required) — app base URL, supports ${VAR} interpolation
+  mode: "strict" | "assisted" | "exploratory" (default: "strict")
+  task: string (optional) — natural language task for exploratory mode
   flows: Flow[] (required)
   assertions: AssertionDefinition[] (optional) — global assertions
-  selectors: Record<string, string> (optional) — named selector map
+  selectors: Record<string, string> (optional) — alias map, core to config-first targeting
+  sourceCodePolicy: "warn" | "block" | "off" (default: "warn")
+  browser: { channel?: string, headless?: boolean } (optional)
   metadata: object (optional)
   timeout: number (optional, default: 15000ms)
   retries: number (optional, default: 2)
@@ -159,47 +216,79 @@ Top-level:
 Flow:
   id: string (required)
   name: string (optional)
-  mode: string (optional) — overrides global mode
+  mode: "strict" | "assisted" (optional) — overrides global mode (not "exploratory" per-flow)
   steps: FlowStep[] (required)
   assertions: AssertionDefinition[] (optional)
+  clearState: boolean (optional) — clear cookies/storage before this flow runs
+  saveState: string (optional) — persist auth state under this name after pass
+  useState: string (optional) — restore named auth state before running
+  skip: boolean (optional) — quarantine flow from full runs
+  skipReason: string (optional)
 
 FlowStep actions:
-  navigate  — { action: "navigate", url: string }
-  click     — { action: "click", selector?: string, testId?: string, text?: string }
-  type      — { action: "type", selector?: string, testId?: string, value: string }
-  wait_for_selector — { action: "wait_for_selector", selector?: string, testId?: string }
+  navigate            — { action, url }
+  click                — { action, selector?/testId?/text?, timeout? }
+  type                 — { action, selector?/testId?/text?, value, timeout? }
+  press                — { action, key, selector?/testId?/text? }
+  select_option        — { action, selector, value }
+  check / uncheck      — { action, selector }
+  hover                — { action, selector }
+  upload_file          — { action, selector, file: string | { name, content, mimeType, encoding? } }
+  wait_for_selector    — { action, selector?/testId?, timeout? }
+  wait_for_url         — { action, value }
+  wait_for_network_idle — { action }
+  Any step also accepts: optional?: boolean, frame?: string (iframe selector)
 
 AssertionDefinition types:
-  page_loaded           — no extra fields required
-  selector_visible      — selector: string
-  text_visible          — value: string
-  url_contains          — value: string
-  title_contains        — value: string
-  no_console_errors     — no extra fields required
-  network_request_success — value: string (URL pattern)
+  page_loaded             — no extra fields required
+  selector_visible         — selector: string, timeout?: number
+  text_visible             — value: string, selector?: string (scopes the search), timeout?: number
+  url_contains             — value: string
+  title_contains           — value: string
+  no_console_errors        — exclude?: string[] (regex patterns to ignore)
+  network_request_success  — value: string (URL pattern), acceptStatuses?: number[]
+
+${VAR} interpolation: step value/url, assertion value, and baseUrl may reference ${VAR_NAME},
+resolved from process.env (incl. .verfix/.env) at run time. Unset var fails the run immediately.
 
 ---
 
 ## Execution Modes
 
-strict:
+strict (default):
   Selector strategy: data-testid → CSS only
-  AI usage: None
+  AI usage: None — needs no AI key
   Reliability: 5/5
   Best for: CI/CD, regression testing
 
 assisted:
   Selector strategy: data-testid → semantic → AI fallback
-  AI usage: Recovery only (when selector fails)
+  AI usage: Recovery only (when selector fails). Works without a key — semantic tier only.
   Recovery chain: exact → semantic (aria-label, role, text) → AI (LLM DOM analysis)
   Reliability: 4/5
   Best for: Active development, evolving UIs
 
 exploratory:
   Selector strategy: AI-planned
-  AI usage: Core driver
+  AI usage: Core driver — requires an AI key, fails fast with ai_key_required if missing
   Reliability: 2/5
   Best for: Discovery, ad-hoc QA, unknown flows
+
+---
+
+## Config-First Verification (important for agents)
+
+When a selector fails, agents should fix it in Verfix configuration — not by editing app source
+to make a test pass. Priority order: (1) reuse the element's existing selector from source,
+directly or via the `selectors` alias map — deterministic, works in strict mode; (2) a semantic
+selector (role/text); (3) let `assisted` mode self-heal as a resilience fallback, not a targeting
+strategy; (4) add a new data-testid to source only as a last resort.
+
+Enforcement: `verfix run` snapshots a git baseline at the start of each verify cycle and reports
+a `source_changes` field naming project files edited since the baseline, classified `project` vs
+`config`. `sourceCodePolicy` controls enforcement: `warn` (default, non-blocking) / `block` (fails
+the run with `source_edit_blocked` until reverted) / `off`. Flags: --source-policy, --reset-baseline.
+Full guide: https://verfix.dev/config-first-verification
 
 ---
 
@@ -215,38 +304,40 @@ async function verifyAndFix(flowId: string, maxRetries = 3) {
     if (result.passed) return; // verified
 
     for (const failure of result.failures) {
-      // failure.type tells you what broke
-      // failure.fix_hint tells you exactly how to fix it
+      // failure.type tells you what broke; failure.flow/assertion tell you where
+      // failure.fix_hint tells you exactly how to fix it — fix the flow/config first
       await applyFix(failure);
     }
 
     if (attempt === maxRetries - 1) {
       // Surface to human
-      throw new Error(`Open: ${result.timeline_url}`);
+      throw new Error(`Open trace: ${result.show_command}`);
     }
   }
 }
 
 ---
 
-## Self-Hosting
+## Self-Hosting (opt-in server mode, --server)
+
+Not required by default. Docker-based API + queue + timeline dashboard — the foundation of a
+future hosted CI product.
 
 docker run -d \
   --name verfix \
-  -p 3610:3610 \
-  -p 3611:3611 \
+  --network=host \
+  -e VERFIX_HOST_NETWORK=1 \
   -e OPENAI_API_KEY=sk-... \
   -v verfix-data:/var/lib/postgresql/15/main \
   -v verfix-artifacts:/app/workers/artifacts \
-  --add-host host.docker.internal:host-gateway \
   ghcr.io/verfix-dev/verfix-server:latest
 
 Health check: GET http://localhost:3611/api/v1/health → { "status": "healthy" }
 
 Environment variables:
-  OPENAI_API_KEY    — Required for assisted/exploratory modes
-  OPENAI_MODEL      — Default: gpt-5.5
-  MAX_CONCURRENCY   — Default: 3
+  OPENAI_API_KEY / provider key  — Required for assisted/exploratory modes
+  AI_MODEL                        — Provider default if unset
+  MAX_CONCURRENCY                 — Default: 3
 
 Volumes:
   verfix-data       — PostgreSQL data (execution history)
@@ -256,11 +347,15 @@ Ports:
   3610 — Dashboard (execution timeline UI)
   3611 — API (Go/Fiber REST)
 
+Full guide: https://verfix.dev/self-hosting
+
 ---
 
 ## AGENTS.md
 
-verfix init generates AGENTS.md in your project root.
-This file tells coding agents (Claude, Cursor, Codex) how to use Verfix in this project.
-It includes: base URL, flow IDs, retry loop instructions, failure taxonomy, output contract.
-Agents that read AGENTS.md will automatically use Verfix after UI changes.
+verfix init writes a compact AGENTS.md stub (~30 lines: identity, the config-first rule, core
+commands) plus the full reference at .verfix/INSTRUCTIONS.md (config schema, step/assertion
+vocabulary, failure taxonomy, output contract, flow-writing guide). Read natively by Codex,
+Cursor, GitHub Copilot, Kilo, opencode, Zed, Jules, and 20+ other agents. For tools that don't
+read AGENTS.md natively, the same stub is mirrored into CLAUDE.md, .github/copilot-instructions.md,
+or .clinerules/verfix.md when detected.

@@ -108,7 +108,14 @@ Each attempt is recorded with timing in the assertion `details`. Healing only ac
 - Recommended default during agent-driven development
 
 <Aside type="note">
-`assisted` is the recommended default mode during agent-driven development. Agents can verify flows even while the UI is actively changing.
+`assisted` is the recommended default mode during agent-driven development. Agents can verify flows even while the UI is actively changing. Assisted mode still works without an AI key — semantic-selector healing (aria-label, role, text) runs regardless; only the AI-fallback tier is skipped.
+</Aside>
+
+<Aside type="caution">
+Self-healing is a **resilience fallback**, not a targeting strategy. The primary way to target an
+element is to read the source and reuse its real selector (directly or via the `selectors` alias
+map) — see [Config-First Verification](/config-first-verification/). A flow that only resolves
+via healing will fail the moment it runs in `strict` mode (e.g. CI), since healing never runs there.
 </Aside>
 
 ### Example config
@@ -145,7 +152,7 @@ In exploratory mode, you provide a natural language task instead of structured s
 Exploratory is fundamentally different from the other modes — it is optimized for **discovery and flexibility**, not production reliability.
 
 <Aside type="caution">
-Results in exploratory mode are clearly marked as `"mode": "exploratory"` in output. They are not CI-grade. Do not use exploratory mode as a merge gate.
+Results in exploratory mode are clearly marked as `"mode": "exploratory"` in output. They are not CI-grade. Do not use exploratory mode as a merge gate. Exploratory mode has no deterministic fallback and fails fast with an `ai_key_required` error before launching a browser if no AI provider/key is configured.
 </Aside>
 
 ### When to use
@@ -169,7 +176,9 @@ verfix run --mode exploratory \
 {
   "passed": true,
   "failures": [],
-  "timeline_url": "http://localhost:3610/?executionId=exec_xyz789",
+  "timeline_url": null,
+  "trace_path": ".verfix/runs/exec_xyz789_trace.zip",
+  "show_command": "verfix show exec_xyz789",
   "exit_code": 0,
   "execution_id": "exec_xyz789"
 }

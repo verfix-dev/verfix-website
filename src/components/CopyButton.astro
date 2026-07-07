@@ -3,7 +3,7 @@ export interface Props {
   text: string;
   label?: string;
   class?: string;
-  variant?: 'inline' | 'icon';
+  variant?: 'inline' | 'icon' | 'text';
 }
 
 const { text, label = 'Copy', class: cls = '', variant = 'inline' } = Astro.props;
@@ -16,20 +16,22 @@ const encodedText = JSON.stringify(text);
   aria-label={`Copy to clipboard: ${label}`}
   type="button"
 >
-  <svg
-    class="copy-icon"
-    width="13"
-    height="13"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="2"
-    aria-hidden="true"
-  >
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-  </svg>
-  {variant === 'inline' && <span class="copy-label">{label}</span>}
+  {variant !== 'text' && (
+    <svg
+      class="copy-icon"
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      aria-hidden="true"
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+    </svg>
+  )}
+  {(variant === 'inline' || variant === 'text') && <span class="copy-label">{label}</span>}
 </button>
 
 <script>

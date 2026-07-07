@@ -20,7 +20,7 @@ export default defineConfig({
       },
     },
     title: 'Verfix',
-    description: 'Browser verification runtime for AI-generated web apps. Run deterministic flows, assert UI state, get structured JSON for agents.',
+    description: 'Local-first browser verification runtime for AI coding agents — the verifier in the agent loop. Run deterministic flows, assert UI state, get structured JSON for agents — no Docker required.',
     favicon: '/favicon.ico',
     logo: {
       light: './src/assets/logo.png',
@@ -47,6 +47,7 @@ export default defineConfig({
         label: 'Guides',
         items: [
           { label: 'Agent Integration', slug: 'agent-integration' },
+          { label: 'Config-First Verification', slug: 'config-first-verification' },
           { label: 'Self-Hosting', slug: 'self-hosting' },
         ],
       },

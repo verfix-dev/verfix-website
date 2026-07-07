@@ -251,6 +251,26 @@ h1.hero-headline {
   cursor: text;
 }
 
+.hero-links {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hero-links-divider {
+  color: var(--vf-text-tertiary);
+}
+
+/* Copy button rendered inline as a plain text link (variant="text") */
+.hero-links .copy-btn.hero-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: 'Geist', sans-serif;
+}
+.hero-links .copy-btn.hero-link:hover { background: transparent; }
+
 .hero-link {
   display: inline-flex;
   align-items: center;
@@ -400,58 +420,47 @@ h1.hero-headline {
   border-radius: 3px;
 }
 
-/* ── Modes grid ──────────────────────────────────────────────────────────── */
-.modes-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-.mode-card {
-  background: var(--vf-surface);
+/* ── Verification modes table ───────────────────────────────────────────── */
+.verify-table {
   border: 1px solid var(--vf-border);
   border-radius: 12px;
-  padding: 1.75rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.mode-card:hover {
-  border-color: var(--vf-green);
-  box-shadow: 0 0 0 1px rgba(0, 217, 126, 0.12), 0 8px 32px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
 }
 
+.verify-row {
+  display: grid;
+  grid-template-columns: 8.5rem 1fr 6.5rem 10rem;
+  gap: 1.25rem;
+  align-items: center;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid var(--vf-border-subtle);
+  font-size: 0.8125rem;
+  color: var(--vf-text-secondary);
+}
+.verify-row:last-child { border-bottom: none; }
+
+.verify-row-head {
+  background: var(--vf-surface-2);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--vf-text-tertiary);
+}
+
+/* Mode name chip — reused inline within the table row */
 .mode-tag {
   display: inline-block;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 4px;
-  margin-bottom: 1rem;
+  width: fit-content;
 }
 .tag-strict     { background: rgba(74, 158, 255, 0.12); color: var(--vf-blue); }
 .tag-assisted   { background: rgba(0, 217, 126, 0.12);  color: var(--vf-green); }
 .tag-exploratory{ background: rgba(245, 166, 35, 0.12); color: var(--vf-amber); }
-
-.mode-name {
-  font-size: 1.125rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin-bottom: 0.5rem;
-}
-
-.mode-desc {
-  color: var(--vf-text-secondary);
-  font-size: 0.875rem;
-  line-height: 1.6;
-  margin-bottom: 1rem;
-}
-
-.mode-best {
-  font-size: 0.75rem;
-  color: var(--vf-text-tertiary);
-  font-family: 'JetBrains Mono', monospace;
-}
-.mode-best span { color: var(--vf-text-secondary); }
 
 /* ── Quickstart ──────────────────────────────────────────────────────────── */
 .qs-step {
@@ -531,25 +540,204 @@ h1.hero-headline {
   line-height: 1.55;
 }
 
+/* ── Screenshots (placeholder — see commented section in index.astro) ────── */
+.screenshot-frame {
+  border: 1px solid var(--vf-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--vf-surface);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+}
+.screenshot-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ── FAQ ─────────────────────────────────────────────────────────────────── */
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 760px;
+}
+
+.faq-item {
+  background: var(--vf-surface);
+  border: 1px solid var(--vf-border);
+  border-radius: 10px;
+  padding: 0.25rem 1.25rem;
+}
+
+.faq-q {
+  padding: 1rem 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.faq-q::-webkit-details-marker { display: none; }
+.faq-q::after {
+  content: '+';
+  flex-shrink: 0;
+  color: var(--vf-text-tertiary);
+  font-size: 1.125rem;
+  font-weight: 400;
+  transition: transform 0.15s ease;
+}
+.faq-item[open] .faq-q::after {
+  transform: rotate(45deg);
+}
+.faq-item:hover .faq-q { color: var(--vf-green); }
+
+.faq-a {
+  color: var(--vf-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  padding-bottom: 1.1rem;
+}
+.faq-a a { color: var(--vf-green); text-decoration: none; }
+.faq-a a:hover { text-decoration: underline; }
+.faq-a code.inline-code { font-size: 0.85em; }
+
+/* ── Closing CTA band ───────────────────────────────────────────────────── */
+.cta-band {
+  border-top: 1px solid var(--vf-border-subtle);
+  background: radial-gradient(ellipse 60% 100% at 50% 0%, rgba(0, 217, 126, 0.06), transparent);
+  padding: 5rem 2rem;
+}
+
+.cta-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.cta-title {
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.75rem;
+}
+
+.cta-sub {
+  color: var(--vf-text-secondary);
+  font-size: 1rem;
+  margin-bottom: 2rem;
+}
+
+.cta-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cta-install-box {
+  max-width: 340px;
+  width: 100%;
+}
+
+.cta-link {
+  color: var(--vf-text-secondary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color 0.15s ease;
+}
+.cta-link:hover { color: var(--vf-text); }
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
+
+/* Tablet (769–1024px): the desktop hero's two fixed columns get too narrow
+   here for the terminal demo to render its JSON lines without overflowing —
+   stack it below the text instead of squeezing it. Card grids drop from 3
+   columns to 2 so text doesn't wrap into a sliver. Nav and type scale stay
+   at desktop size since a single stacked column still has ~700-900px to work
+   with here, unlike true mobile. */
+@media (max-width: 1024px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    padding: 6.5rem 3rem 4rem;
+    min-height: unset;
+  }
+  .hero-right {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .steps-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .steps-grid .step-card:last-child {
+    grid-column: 1 / -1;
+  }
+  .page-section { padding: 4rem 2.5rem; }
+}
+
+/* Mobile (≤768px) */
 @media (max-width: 768px) {
   .hero {
     grid-template-columns: 1fr;
     padding: 6rem 1.5rem 3rem;
     gap: 2.5rem;
+    /* No forced min-height/centering here on purpose: the terminal demo is
+       shown below the text on mobile now (see .hero-right below), so real
+       content — headline, sub, actions, terminal — is already taller than
+       one screen. Padding a short block out to 100vh was fighting the
+       symptom (an early peek of the next section) instead of the cause
+       (there wasn't enough real content to fill the screen in the first
+       place). Natural flow gives "The problem" its own scroll without any
+       artificial empty space above, below, or in between. */
     min-height: unset;
+    align-items: start;
   }
+
+  .hero-right {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* The desktop clamp() floors at 2.25rem well before this breakpoint, so
+     "Browser verification" (21 characters, weight 800) never actually
+     shrinks — it just wraps mid-word on a phone. Give mobile its own scale
+     so the three-line stanza still reads as one line each. */
+  h1.hero-headline {
+    font-size: clamp(1.65rem, 7.5vw, 2.25rem);
+  }
+  .hero-sub {
+    font-size: 0.9375rem;
+    max-width: 100%;
+  }
+  .hero-sub-break { display: none; }
+
+  .hero-links {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+  .hero-links-divider { display: none; }
+  .hero-links .copy-btn.hero-link { padding: 4px 0; }
+
   .steps-grid { grid-template-columns: 1fr; }
-  .modes-grid { grid-template-columns: 1fr; }
   .compare-grid { grid-template-columns: 1fr; }
+  .verify-row {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    align-items: start;
+  }
+  .verify-row-head { display: none; }
   .compare-col:first-child { border-right: none; border-bottom: 1px solid var(--vf-border); }
   .site-nav { padding: 0 1.25rem; }
   .nav-links { display: none; }
   .page-section { padding: 3rem 1.25rem; }
   .footer-inner { flex-direction: column; }
-
-  /* Hide terminal demo on mobile */
-  .hero-right { display: none; }
 
   /* Quickstart mobile fixes */
   .qs-step {
@@ -586,4 +774,8 @@ h1.hero-headline {
   .qs-note {
     font-size: 0.75rem;
   }
+
+  /* CTA band mobile fixes */
+  .cta-band { padding: 3.5rem 1.25rem; }
+  .cta-install-box { max-width: 100%; }
 }

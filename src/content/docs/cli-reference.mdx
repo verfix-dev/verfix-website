@@ -1,11 +1,12 @@
 ---
 title: CLI Reference
-description: Complete reference for every verfix CLI command and flag. Derived from cli/src/index.ts.
+description: Complete reference for every verfix CLI command and flag.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-The `verfix` CLI manages the runtime lifecycle and runs browser verification jobs. Install it with:
+The `verfix` CLI runs browser verification jobs **locally, in-process** — no runtime to start, no
+services to manage. Install it with:
 
 ```bash
 npm install -g verfix
@@ -13,11 +14,18 @@ npm install -g verfix
 
 All commands can also be run with `npx verfix <command>`.
 
+<Aside type="tip">
+Every command below runs in **local mode** by default (just Node.js + Chromium). Pass `--server`
+(or set `VERFIX_RUNNER=server`) to route through the opt-in Docker server runtime instead — see
+[Self-Hosting](/self-hosting/).
+</Aside>
+
 ---
 
 ## verfix init
 
-**Setup wizard** — configures the runtime, scaffolds flows, and generates `AGENTS.md`.
+**Setup wizard** — configures your project and generates `AGENTS.md`. Flows aren't scaffolded;
+the coding agent writes them on demand — see the note below.
 
 ```bash
 verfix init              # Interactive mode
@@ -32,12 +40,13 @@ verfix init --yes        # Non-interactive mode (for CI and AI agents)
 | `-y, --yes` | Non-interactive mode (for CI and AI agents) |
 | `--ai-provider <id>` | AI provider: `openai` \| `anthropic` \| `gemini` \| `openrouter` (auto-detected from key format if omitted) |
 | `--ai-model <name>` | Model ID (e.g. `gpt-5.4-mini`, `claude-sonnet-4-6`). Uses provider default if omitted. |
-| `--ai-key <key>` | API key string |
+| `--ai-key <key>` | API key string. Only needed for `assisted`/`exploratory` modes. |
 | `--base-url <url>` | App URL (e.g. `http://localhost:3000`). Default: `http://localhost:3000` |
-| `--mode <mode>` | Verification mode: `strict` \| `assisted` \| `exploratory`. Default: `assisted` |
-| `--skip-runtime` | Don't start Docker container |
-| `--skip-agent-files` | Don't write `.cursorrules`/`CLAUDE.md`/`CODEX.md` |
+| `--mode <mode>` | Verification mode: `strict` \| `assisted` \| `exploratory`. Default: `strict` |
+| `--skip-runtime` | Skip runtime setup (Chromium download in local mode, Docker start in `--server` mode) |
+| `--skip-agent-files` | Don't write `AGENTS.md`/`CLAUDE.md`/etc. |
 | `--dry-run` | Preview what would happen, don't write anything |
+| `--server` | Set up the opt-in Docker server runtime instead of local mode |
 
 **Environment variable fallbacks:**
 
@@ -55,20 +64,31 @@ verfix init --yes        # Non-interactive mode (for CI and AI agents)
 
 **What it does (step by step):**
 
-1. Checks Docker is installed and running
-2. Pulls `ghcr.io/verfix-dev/verfix-server:latest` if not already present
-3. Starts the runtime container
-4. Prompts for your app's **base URL**
-5. Prompts for the default **verification mode** (`strict`, `assisted`, `exploratory`)
-6. Prompts for which **flows** to scaffold from the preset library
-7. Prompts for your **AI API key** (required for Assisted/Exploratory)
-8. Writes `verfix.config.json` in the current directory
-9. Generates or updates `AGENTS.md`
+1. Prompts for your app's **base URL**
+2. Prompts for the default **verification mode** (default `strict` — no AI key required)
+3. Prompts for your **AI API key** only if you chose `assisted`/`exploratory`
+4. Makes sure Chromium is available, downloading it once if missing (~130MB, cached)
+5. Writes an empty `verfix.config.json` (`flows: []`) in the current directory
+6. Generates a compact `AGENTS.md` stub plus the full reference at `.verfix/INSTRUCTIONS.md`
+   (and mirrors the stub into any detected `CLAUDE.md`, `.github/copilot-instructions.md`, or
+   `.clinerules/verfix.md`)
 
-**Non-interactive example:**
+<Aside type="note">
+There's no flow-scaffolding prompt and no preset flow library — `init` doesn't know your app's
+routes or components, so it doesn't guess. The agent writes the first real flow by reading your
+source, guided by `.verfix/INSTRUCTIONS.md`. See [Config-First Verification](/config-first-verification/).
+</Aside>
+
+**Non-interactive example (strict mode, zero credentials):**
 
 ```bash
-VERFIX_AI_KEY="$OPENAI_API_KEY" verfix init --yes --base-url http://localhost:3000
+verfix init --yes --base-url http://localhost:3000
+```
+
+**Non-interactive example (assisted mode, with an AI key):**
+
+```bash
+VERFIX_AI_KEY="$ANTHROPIC_API_KEY" verfix init --yes --mode assisted --base-url http://localhost:3000
 ```
 
 ---
@@ -81,7 +101,8 @@ VERFIX_AI_KEY="$OPENAI_API_KEY" verfix init --yes --base-url http://localhost:30
 verfix agent-setup
 ```
 
-Prints JSON with setup information and bootstrap instructions. Useful for AI agents that need to initialize Verfix programmatically.
+Prints JSON with setup information and bootstrap instructions. Useful for AI agents that need to
+initialize Verfix programmatically.
 
 **JSON output shape:**
 
@@ -92,16 +113,15 @@ Prints JSON with setup information and bootstrap instructions. Useful for AI age
   "bootstrap": {
     "description": "Run this command to initialize Verfix non-interactively",
     "command": "npx verfix init --yes",
-    "required_flags": {
-      "--ai-key": "API key (or set VERFIX_AI_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY env var)"
-    },
+    "required_flags": {},
     "optional_flags": {
+      "--ai-key": "API key — only needed for assisted/exploratory modes",
       "--ai-provider": "openai | anthropic | gemini | openrouter (auto-detected from key if omitted)",
       "--ai-model": "Model ID (uses provider default if omitted)",
       "--base-url": "App URL (default: http://localhost:3000)",
-      "--mode": "strict | assisted | exploratory (default: assisted)",
-      "--skip-runtime": "Skip Docker container startup",
-      "--skip-agent-files": "Skip writing .cursorrules/CLAUDE.md/CODEX.md",
+      "--mode": "strict | assisted | exploratory (default: strict)",
+      "--skip-runtime": "Skip Chromium download",
+      "--skip-agent-files": "Skip writing agent instruction files",
       "--dry-run": "Preview without writing files"
     }
   }
@@ -110,120 +130,196 @@ Prints JSON with setup information and bootstrap instructions. Useful for AI age
 
 ---
 
-## verfix start
+## verfix run
 
-**Starts the Verfix runtime container.**
+**Runs a verification job.**
 
 ```bash
-verfix start
-verfix start --show-browser   # Open a visible browser window for debugging
+verfix run [options]
 ```
-
-Pulls the Docker image (slim image on macOS/Windows, full image on Linux) if missing, starts the container, and waits for the health check to pass. Prints the API and Dashboard URLs on success.
 
 **Options:**
 
 | Flag | Description |
 |------|-------------|
-| `--show-browser` | Run browser in headful mode — opens a visible browser window for debugging. Default: headless. |
+| `-f, --flow <id>` | Flow ID or name to run |
+| `-u, --url <url>` | Target URL to verify |
+| `-t, --task <task>` | Task description (required for exploratory mode) |
+| `-m, --mode <mode>` | Verification mode: `strict` \| `assisted` \| `exploratory` |
+| `-o, --output <format>` | Output format: `pretty` \| `json`. Default: `json` |
+| `-c, --config <file>` | Path to `verfix.config.json`. Default: `./verfix.config.json` |
+| `--full` | Include the raw `ExecutionResult` (full event timeline) in JSON output. Default output is a lossless summary — details stay pull-on-demand via `verfix show`. |
+| `--timeout <ms>` | Timeout in milliseconds. Default: `15000` |
+| `--retries <n>` | Number of retries on failure. Default: `2` |
+| `--show-browser` | Show the browser window (local mode only). Default: headless. |
+| `--source-policy <policy>` | Project-source edit policy: `warn` \| `block` \| `off` (overrides config) |
+| `--reset-baseline` | Reset the source-change baseline for this verify cycle |
+| `--skip-download` | Don't auto-download Chromium; fail fast with `browser_not_installed` if missing |
+| `--server` | Run via the opt-in Docker server runtime instead of locally |
 
-If the runtime is already running, it reports the current ports without restarting.
+**JSON output contract (default, summarized):**
+
+```json
+{
+  "passed": false,
+  "failures": [
+    {
+      "type": "selector_not_found",
+      "flow": "login",
+      "assertion": "selector_visible",
+      "selector": "[data-testid=submit]",
+      "detail": "Selector not found after 15000ms",
+      "fix_hint": "Selector \"[data-testid=submit]\" not found in DOM. Add a stable data-testid or update the selector."
+    }
+  ],
+  "timeline_url": null,
+  "trace_path": ".verfix/runs/exec_abc123_trace.zip",
+  "show_command": "verfix show exec_abc123",
+  "detail_commands": {
+    "console": "verfix show exec_abc123 --console --output json",
+    "network": "verfix show exec_abc123 --network --output json"
+  },
+  "duration_ms": 4231,
+  "retry_count": 0,
+  "exit_code": 1,
+  "execution_id": "exec_abc123"
+}
+```
+
+`timeline_url` is `null` in local runs (it's only populated in `--server` mode). Skipped
+`optional` steps are listed in `skipped_optional_steps`; a non-clean git working tree during the
+verify loop adds a `source_changes` field — see [Config-First Verification](/config-first-verification/).
+Pass `--full` to get the complete raw event timeline instead of the summary.
+
+**Exit codes:**
+- `0` — all assertions passed
+- `1` — one or more assertions failed
+- `2` — setup error (bad config, unknown flow, missing env var, etc.)
+
+<Aside type="tip">
+`assisted` mode works without an AI key — semantic-selector healing (aria-label, role, text) still
+runs; only the LLM fallback tier is skipped. `exploratory` mode has no deterministic fallback and
+fails fast with `ai_key_required` if no AI provider/key is configured.
+</Aside>
+
+**Examples:**
+
+```bash
+# Run a specific flow
+verfix run --flow login --output json
+
+# Run all flows
+verfix run --output json
+
+# Run in exploratory mode with a natural language task
+verfix run --mode exploratory --task "verify the login page loads and shows a form" --output json
+
+# Run against a specific URL without a config file
+verfix run --url http://localhost:3000 --output json
+
+# Block the run if project source was edited during the fix loop
+verfix run --flow checkout --source-policy block --output json
+
+# See the full raw event timeline instead of the summary
+verfix run --flow login --full --output json
+```
 
 ---
 
-## verfix stop
+## verfix show
 
-**Stops the Verfix runtime container.**
-
-```bash
-verfix stop
-```
-
-Stops and removes the running container. Data is preserved in Docker volumes (`verfix-data`, `verfix-artifacts`).
-
----
-
-## verfix status
-
-**Checks runtime, API, and dashboard health.**
+**Opens the recorded Playwright trace for a run (newest run if no id given).**
 
 ```bash
-verfix status [executionId]
+verfix show                          # newest run
+verfix show exec_abc123               # specific run
+verfix show --console                 # print console log instead of opening the trace viewer
+verfix show exec_abc123 --network --output json
 ```
-
-**Arguments:**
-
-| Argument | Description |
-|----------|-------------|
-| `[executionId]` | Optional. If provided, fetches and displays the status of a specific execution. |
 
 **Options:**
 
 | Flag | Description |
 |------|-------------|
+| `--console` | Print the run's captured console log (full untruncated error text) |
+| `--network` | Print the run's captured network requests (method, URL, status, timing) |
 | `-o, --output <format>` | Output format: `pretty` \| `json`. Default: `pretty` |
 
-Without an `executionId`, prints:
-- Container status (running / not found)
-- API health (healthy / unreachable)
-- Dashboard health (healthy / unreachable)
-- Docker image name
-- Container uptime
-
-With an `executionId`:
-- Execution ID
-- Status (`queued`, `running`, `completed`, `failed`)
-- Duration in milliseconds
-
 ---
 
-## verfix logs
+## verfix probe
 
-**Tails the runtime container logs.**
+**Dry-run selectors/text against a run's saved DOM snapshot (~1s) instead of a full run.**
 
 ```bash
-verfix logs
+verfix probe --selector "[data-testid=submit]"
+verfix probe exec_abc123 --selector "emailInput" --text "Welcome back"
 ```
 
 **Options:**
 
 | Flag | Description |
 |------|-------------|
-| `--tail <n>` | Number of lines to show. Default: `50` |
+| `-s, --selector <selectors...>` | CSS selector(s) to check. Config `selectors` aliases resolve first. |
+| `-t, --text <texts...>` | Text content to check (same matching as the `text_visible` assertion) |
+| `-c, --config <file>` | Path to `verfix.config.json` (for the `selectors` alias map) |
+| `-o, --output <format>` | Output format: `pretty` \| `json`. Default: `pretty` |
+
+Reports match count, an `outerHTML` excerpt, and a `[hidden]` marker per match. Exit `0` if every
+query matched, `1` if any missed. The snapshot is **end-of-run** DOM state (at-failure state for
+failed runs) — JavaScript is disabled and network is blocked while probing, so it can't mutate or
+fetch anything live.
 
 ---
 
-## verfix update
+## verfix validate
 
-**Pulls the latest runtime image and restarts the container.**
+**Checks `verfix.config.json` for structural and semantic errors without running anything.**
 
 ```bash
-verfix update
+verfix validate
 ```
 
-1. Pulls `ghcr.io/verfix-dev/verfix-server:latest`
-2. Stops the existing container
-3. Starts the updated container
-4. Waits for health check
+Catches: unknown assertion types, duplicate flow ids, a flow with no steps/assertions, an invalid
+per-flow `mode: "exploratory"` (only valid as the top-level mode), `exploratory` mode with no AI
+key configured, `useState` referencing a name no flow ever `saveState`s, and oversized inline
+`upload_file` content (over 64KB — use a fixture path instead).
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-c, --config <file>` | Path to config file. Default: `./verfix.config.json` |
+| `-o, --output <format>` | Output format: `pretty` \| `json`. Default: `pretty` |
+
+Exits `0` if valid (warnings still allowed), non-zero if invalid.
+
+---
+
+## verfix install
+
+**Downloads the Chromium browser separately from `verfix run`.**
+
+```bash
+verfix install
+```
+
+Useful when you want to pre-warm the ~130MB one-time download (e.g. in a Docker build layer or CI
+cache step) instead of paying for it inline during the first `verfix run`.
 
 ---
 
 ## verfix doctor
 
-**Runs diagnostic checks on the Verfix setup.**
+**Runs diagnostic checks on your setup.**
 
 ```bash
 verfix doctor
 ```
 
-Checks (in order):
-1. Docker installed
-2. Docker daemon running
-3. Container running
-4. API reachable at health endpoint
-5. Dashboard reachable
-6. `verfix.config.json` exists in current directory
-7. `AGENTS.md` exists in current directory
+Checks (local mode): Node version, `@verfix/engine` installed, Chromium installed, `verfix.config.json`
+valid, `AGENTS.md` present, app reachable at the configured base URL, AI key format/model valid if
+configured. Docker is checked only informationally — it's never a failure in local mode.
 
 Exits with code equal to the number of failed checks. Exit code `0` means all checks passed.
 
@@ -242,7 +338,7 @@ verfix flows
 | Flag | Description |
 |------|-------------|
 | `-c, --config <file>` | Path to config file. Default: `./verfix.config.json` |
-| `-o, --output <format>` | Output format: `pretty` \| `json`. Default: `pretty` |
+| `-o, --output <format>` | Output format: `pretty` \| `json` |
 
 **JSON output shape:**
 
@@ -250,7 +346,7 @@ verfix flows
 {
   "flows": [
     { "id": "login", "steps": 4, "assertions": 2 },
-    { "id": "dashboard-load", "steps": 1, "assertions": 3 }
+    { "id": "dashboard-load", "steps": 1, "assertions": 3, "skip": true, "skip_reason": "flaky pending backend fix" }
   ],
   "total": 2
 }
@@ -258,87 +354,45 @@ verfix flows
 
 ---
 
-## verfix run
-
-**Runs a verification job.**
-
-```bash
-verfix run [options]
-```
-
-**Options:**
-
-| Flag | Description |
-|------|-------------|
-| `-u, --url <url>` | Target URL to verify |
-| `-t, --task <task>` | Task description (used in dashboard) |
-| `-c, --config <file>` | Path to `verfix.config.json`. Default: `./verfix.config.json` |
-| `-f, --flow <id>` | Flow ID or name to run |
-| `-m, --mode <mode>` | Verification mode: `strict` \| `assisted` \| `smoke` \| `exploratory` |
-| `-o, --output <format>` | Output format: `pretty` \| `json`. Default: `json` |
-| `--dashboard <url>` | Dashboard base URL for timeline links |
-| `--timeout <ms>` | Timeout in milliseconds. Default: `15000` |
-| `--retries <n>` | Number of retries on failure. Default: `2` |
-| `--show-browser` | Run browser in headful mode — opens a visible browser window for debugging. Default: headless. |
-
-**JSON output contract:**
-
-```json
-{
-  "passed": false,
-  "failures": [
-    {
-      "type": "selector_not_found",
-      "selector": "[data-testid=submit]",
-      "detail": "Selector not found after 15000ms",
-      "fix_hint": "Selector \"[data-testid=submit]\" not found in DOM. Add a stable data-testid or update the selector."
-    }
-  ],
-  "timeline_url": "http://localhost:3610/?executionId=exec_abc123",
-  "exit_code": 1,
-  "execution_id": "exec_abc123",
-  "raw": { ... }
-}
-```
-
-**Exit codes:**
-- `0` — all assertions passed
-- `1` — one or more assertions failed or execution error
-
-<Aside type="tip">
-On Mac/Windows, Verfix runs Playwright workers natively on the host machine (via hybrid host mode), so `localhost` directly resolves to your app. On Linux, workers run inside the container with `--network=host`. Set `VERFIX_BROWSER_MODE=container` to force container-mode workers on Mac/Windows, or `VERFIX_BROWSER_MODE=host` to force host-mode on Linux.
-</Aside>
-
-**Examples:**
-
-```bash
-# Run a specific flow, JSON output
-verfix run --flow login --output json
-
-# Run all flows
-verfix run --output json
-
-# Run in exploratory mode with a natural language task
-verfix run --mode exploratory --task "verify the login page loads and shows a form" --output json
-
-# Run against a specific URL without a config file
-verfix run --url http://localhost:3000 --output json
-
-# Run with custom timeout and retries
-verfix run --flow checkout --timeout 30000 --retries 3 --output json
-```
-
----
-
 ## verfix list
 
-**Lists recent verification executions.**
+**Lists recent local verification runs from `.verfix/runs/`.**
 
 ```bash
 verfix list
 ```
 
-Shows the last N executions from the API, with status icons, execution IDs, tasks, and URLs.
+---
+
+## verfix status
+
+**Summarizes your local setup at a glance.**
+
+```bash
+verfix status
+```
+
+```
+Runner:    local (no Docker needed — use --server for the container runtime)
+Config:    verfix.config.json
+Chromium:  installed
+Last run:  passed  exec_abc123  (verfix show exec_abc123)
+```
+
+---
+
+## Server runtime commands (opt-in, `--server`)
+
+`start`, `stop`, `logs`, and `update` are no-ops in local mode (they print what to do instead).
+Pass `--server` (or set `VERFIX_RUNNER=server`) to manage the Docker-based server runtime — the
+foundation of the future hosted CI product. See [Self-Hosting](/self-hosting/) for the full guide.
+
+```bash
+verfix start --server        # pull + start the container
+verfix run --server ...      # run through the API/queue
+verfix logs --server         # tail container logs
+verfix stop --server         # stop and remove the container
+```
 
 ---
 
@@ -356,5 +410,5 @@ verfix <cmd> --help # Print help for a specific command
 
 ## Requirements
 
-- **Docker Desktop** — [download here](https://www.docker.com/products/docker-desktop/). Must be running before using Verfix.
-- **Node.js 20.20.0+** — `node --version` to check.
+- **Node.js 20+** — `node --version` to check. That's the whole list for local mode.
+- **Docker** — only required for the opt-in `--server` runtime.

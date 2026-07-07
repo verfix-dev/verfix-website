@@ -5,7 +5,7 @@
 <div
   class="terminal"
   role="img"
-  aria-label="Animated terminal showing verfix init and verfix run commands with structured JSON output"
+  aria-label="Animated terminal showing verfix init and verfix run commands running locally with structured JSON output"
 >
   <div class="terminal-header" aria-hidden="true">
     <span class="dot dot-red"></span>
@@ -144,19 +144,20 @@
   }
 
   const LINES: TermLine[] = [
-    { html: '<span class="vf-t-prompt">$</span> <span class="vf-t-cmd">verfix init</span>', delay: 350 },
+    { html: '<span class="vf-t-prompt">$</span> <span class="vf-t-cmd">npx verfix init</span>', delay: 350 },
     { html: '', blank: true, delay: 200 },
-    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Docker running</span>', delay: 420 },
-    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Pulling ghcr.io/verfix-dev/verfix-server:latest</span>', delay: 520 },
-    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Runtime started</span>', delay: 360 },
+    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">No Docker needed — local mode (Node.js 20+)</span>', delay: 420 },
+    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Chromium ready (~130MB, cached)</span>', delay: 460 },
     { html: '', blank: true, delay: 200 },
     { html: '<span class="vf-t-q">?</span> <span class="vf-t-ans">Base URL: http://localhost:3000</span>', delay: 400 },
-    { html: '<span class="vf-t-q">?</span> <span class="vf-t-ans">Mode: assisted (recommended)</span>', delay: 320 },
-    { html: '<span class="vf-t-q">?</span> <span class="vf-t-ans">Flows: login, dashboard-load</span>', delay: 320 },
+    { html: '<span class="vf-t-q">?</span> <span class="vf-t-ans">Mode: strict (no AI key needed)</span>', delay: 320 },
     { html: '', blank: true, delay: 200 },
-    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Created verfix.config.json</span>', delay: 360 },
+    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Created verfix.config.json (flows: [])</span>', delay: 360 },
     { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Updated AGENTS.md</span>', delay: 360 },
     { html: '', blank: true, delay: 450 },
+    { html: '<span class="vf-t-dim">// agent edits LoginForm.tsx, then writes a flow to verify it</span>', delay: 500 },
+    { html: '<span class="vf-t-ok">+</span> <span class="vf-t-dim">"login" flow added → verfix.config.json</span>', delay: 420 },
+    { html: '', blank: true, delay: 300 },
     { html: '<span class="vf-t-prompt">$</span> <span class="vf-t-cmd">verfix run --flow login --output json</span>', delay: 550 },
     { html: '<span class="vf-t-bracket">{</span>', delay: 280 },
     { html: '&nbsp;&nbsp;<span class="vf-t-key">"passed"</span><span class="vf-t-bracket">:</span> <span class="vf-t-false">false</span><span class="vf-t-bracket">,</span>', delay: 200 },
@@ -164,8 +165,12 @@
     { html: '&nbsp;&nbsp;&nbsp;&nbsp;<span class="vf-t-key">"type"</span><span class="vf-t-bracket">:</span> <span class="vf-t-str">"selector_not_found"</span><span class="vf-t-bracket">,</span>', delay: 200 },
     { html: '&nbsp;&nbsp;&nbsp;&nbsp;<span class="vf-t-key">"fix_hint"</span><span class="vf-t-bracket">:</span> <span class="vf-t-str">"Add data-testid=\'submit\' to button"</span>', delay: 200 },
     { html: '&nbsp;&nbsp;<span class="vf-t-bracket">}],</span>', delay: 200 },
+    { html: '&nbsp;&nbsp;<span class="vf-t-key">"trace_path"</span><span class="vf-t-bracket">:</span> <span class="vf-t-str">".verfix/runs/exec_abc123_trace.zip"</span><span class="vf-t-bracket">,</span>', delay: 200 },
     { html: '&nbsp;&nbsp;<span class="vf-t-key">"exit_code"</span><span class="vf-t-bracket">:</span> <span class="vf-t-num-bad">1</span>', delay: 200 },
-    { html: '<span class="vf-t-bracket">}</span>', delay: 200 },
+    { html: '<span class="vf-t-bracket">}</span>', delay: 220 },
+    { html: '', blank: true, delay: 350 },
+    { html: '<span class="vf-t-prompt">$</span> <span class="vf-t-cmd">verfix show exec_abc123</span>', delay: 260 },
+    { html: '<span class="vf-t-ok">✓</span> <span class="vf-t-dim">Opening Playwright trace viewer…</span>', delay: 200 },
   ];
 
   function runTerminal() {

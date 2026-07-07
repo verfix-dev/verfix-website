@@ -9,6 +9,62 @@ For the full detailed commit history and changes, visit the [full CHANGELOG on G
 
 ---
 
+## v0.3.6 (2026-07-07)
+
+### Added
+- **Auth state reuse** (`saveState` / `useState` flow fields) — a login flow can persist cookies (incl. `httpOnly`), `localStorage`, and IndexedDB under a name; other flows restore it and start already authenticated.
+- **`select_option`, `check`, `uncheck`, `hover` flow steps.**
+- **`upload_file` flow step** — fixture path or inline `{ name, content, mimeType, encoding }`, CI-safe.
+- **`wait_for_url` and `wait_for_network_idle` flow steps.**
+- **`frame` step field** for targeting elements inside an `<iframe>` (payment widgets, embedded editors).
+- **Scoped `text_visible`** — optional `selector` narrows the text search to one element.
+- **`verfix show --console` / `--network`** — print a run's captured console log and network requests without hand-parsing files in `.verfix/runs/`.
+- **`verfix probe`** — dry-run selectors/text against a run's saved DOM snapshot (~1s) instead of a full run.
+- **AI rate-limit circuit breaker** — after 3 consecutive 429s, AI calls disable for the rest of the run instead of retrying and failing on every step.
+
+### Changed
+- **JSON output is now a summary by default; `--full` restores the raw event timeline.** The full timeline was ~93% of the payload and agents paid for it on every fix-loop iteration. The summary stays lossless for anything non-nominal — failures carry `flow`/`assertion`, skipped `optional` steps are always listed, `source_changes` always appears when non-clean.
+
+## v0.3.5 (2026-07-06)
+
+### Added
+- **`press` flow step** — sends a keyboard key on a target or at the page level, for UIs that submit on `keydown` rather than form submission.
+
+## v0.3.4 (2026-07-06)
+
+### Added
+- **`${VAR}` environment variable interpolation** in flow step `value`/`url`, assertion `value`, and `baseUrl` — resolved from `process.env` (including `.verfix/.env`) at run time, so secrets never need to live in `verfix.config.json`.
+- **Optional flow steps** (`"optional": true`) — skipped instead of aborting the flow if they fail within their timeout.
+- **Flow `clearState`** — clears cookies and storage before a flow runs, for flows that must start logged-out.
+- **`network_request_success` `acceptStatuses`** and **`no_console_errors` `exclude`** — handle endpoints/errors with more than one valid outcome without branching the flow.
+
+## v0.3.3 (2026-07-05)
+
+### Added
+- **`verfix validate`** — checks `verfix.config.json` for structural and semantic errors without running anything.
+- **Flow `skip` / `skipReason`** — quarantine a known-broken flow from a full run without deleting it.
+
+### Fixed
+- Per-flow `mode` override was silently dropped when running multiple flows together — now correctly applies for any number of flows in one run.
+- Exploratory mode now fails fast with `ai_key_required` before launching a browser if no AI key is configured, instead of failing after.
+- Chromium headless-shell install self-repairs on a partial/interrupted install instead of crashing.
+
+## v0.3.1 (2026-07-04) — Verfix is now local-first
+
+### Changed
+- **`verfix run` executes in-process by default — no Docker, no Redis, no API server.** The verification engine was extracted as **`@verfix/engine`**; a clean machine needs only Node 20+, and the first run downloads Chromium once (~130MB, cached). Existing `verfix.config.json` files need zero changes.
+- **Strict mode needs no AI key.** `verfix init` defaults to `strict` and only asks for a provider/key when you pick `assisted`/`exploratory`.
+- **Results live in `.verfix/runs/`** — each run persists a JSON summary plus a full Playwright trace zip (newest 20 kept). New commands: `verfix show` opens the trace viewer, `verfix list` lists recent runs.
+- **The Docker server runtime is now opt-in** via `--server` (or `VERFIX_RUNNER=server`) — the foundation of a future hosted CI product, not the default path.
+- **Config-First Source Guard introduced** — `verfix run` snapshots a git baseline each verify cycle and reports `source_changes`; `sourceCodePolicy` (`warn`/`block`/`off`) controls enforcement. See [Config-First Verification](/config-first-verification/).
+- Agent files consolidated around the `AGENTS.md` standard — a compact stub plus a full `.verfix/INSTRUCTIONS.md` reference; `.cursorrules`/`CODEX.md` generation dropped (Cursor/Codex read `AGENTS.md` natively).
+
+### Removed
+- **Hybrid host/container browser mode** and the slim server image auto-selection — local mode covers the same use case natively.
+
+### Fixed
+- **`npm install verfix` now resolves its engine dependency correctly** — previously shipped a broken local-path reference that left a dead symlink in consumers' installs.
+
 ## v0.2.10 (2026-06-27)
 
 ### Added

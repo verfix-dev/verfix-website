@@ -2,9 +2,9 @@
 import MarketingLayout from '../../layouts/MarketingLayout.astro';
 ---
 
-<MarketingLayout 
-  title="Verfix Documentation — Developer Hub"
-  description="Explore integration guides, configuration schemas, CLI references, and run styles for Verfix browser verification runtime."
+<MarketingLayout
+  title="Verfix Documentation — Local-First Browser Verification for AI Agents"
+  description="Docs for Verfix, the verifier in your AI coding agent's loop: CLI reference, config schema, execution modes, and config-first verification. No Docker required."
 >
   <main class="docs-hub-hero">
     <div class="glow-bg" aria-hidden="true"></div>
@@ -13,9 +13,9 @@ import MarketingLayout from '../../layouts/MarketingLayout.astro';
       <!-- Header -->
       <header class="hub-header">
         <span class="hub-badge">DOCUMENTATION PORTAL</span>
-        <h1 class="hub-title">How can we help you build?</h1>
+        <h1 class="hub-title">The verifier in your agent's loop</h1>
         <p class="hub-subtitle">
-          Explore references, modes, and guides to integrate Verfix's browser verification runtime with your AI agents and development environments.
+          Everything for wiring Verfix into an AI coding agent's edit → verify → fix loop — CLI reference, config schema, execution modes, and the config-first guardrails that keep it from rewriting your app.
         </p>
       </header>
 
@@ -25,7 +25,7 @@ import MarketingLayout from '../../layouts/MarketingLayout.astro';
           <div class="quick-card-body">
             <span class="quick-label">GETTING STARTED</span>
             <h2>New to Verfix? Let's install the CLI</h2>
-            <p>Set up the runtime locally, verify your Docker environment, and run your first browser verification flow in under 5 minutes.</p>
+            <p>Install the CLI, run `verfix init`, and run your first browser verification flow in under 2 minutes — no Docker required.</p>
           </div>
           <a href="/getting-started" class="quick-card-action">
             Start Setup
@@ -102,9 +102,14 @@ import MarketingLayout from '../../layouts/MarketingLayout.astro';
               <p>Step-by-step guides for connecting Verfix structured JSON feedback into LLM architectures, AutoGen, and LangChain environments.</p>
               <span class="card-link">Connect AI Agents →</span>
             </a>
+            <a href="/config-first-verification" class="hub-card">
+              <h3>Config-First Verification</h3>
+              <p>Why agents should fix flows, not rewrite your app, and the git-baseline source guard that enforces it.</p>
+              <span class="card-link">Read the guide →</span>
+            </a>
             <a href="/self-hosting" class="hub-card">
-              <h3>Self-Hosting Guide</h3>
-              <p>Deploy the Verfix runtime to private cloud infra, manage persistent storage layers, and configure customized server parameters.</p>
+              <h3>Self-Hosting Guide (Optional)</h3>
+              <p>The opt-in Docker server runtime — API, queue, and timeline dashboard — for teams that want a shared deployment.</p>
               <span class="card-link">Deploy to private servers →</span>
             </a>
           </div>

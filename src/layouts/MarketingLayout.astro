@@ -19,14 +19,18 @@ const {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{title}</title>
   <meta name="description" content={description} />
-  <meta name="keywords" content="verfix, ai coding agents, browser verification runtime, web app testing, structured testing feedback, automated testing schema, playwright wrapper" />
+  <meta name="keywords" content="verfix, ai coding agents, browser verification runtime, loop engineering, agent verifier, agentic coding loop, claude code testing, cursor browser testing, codex verification, AGENTS.md, web app testing, structured testing feedback, playwright for ai agents" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href={`https://verfix.dev${Astro.url.pathname}`} />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Verfix" />
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
   <meta property="og:image" content="https://verfix.dev/verfixCard.png" />
   <meta property="og:url" content={`https://verfix.dev${Astro.url.pathname}`} />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={title} />
+  <meta name="twitter:description" content={description} />
   <meta name="twitter:image" content="https://verfix.dev/verfixCard.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -39,6 +43,34 @@ const {
     href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
   />
   <link rel="sitemap" href="/sitemap-index.xml" />
+  <!-- Machine-readable reference for AI agents/assistants — see https://llmstxt.org -->
+  <link rel="llms.txt" href="/llms.txt" />
+  <script type="application/ld+json" set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Verfix',
+    alternateName: 'verfix',
+    description: 'Local-first browser verification runtime for AI coding agents — the verifier in the agent loop. Agents write the flow, run it, and get structured JSON failure reports with fix hints. No Docker required.',
+    applicationCategory: 'DeveloperApplication',
+    operatingSystem: 'macOS, Linux, Windows',
+    softwareVersion: '0.3.6',
+    url: 'https://verfix.dev',
+    downloadUrl: 'https://www.npmjs.com/package/verfix',
+    installUrl: 'https://www.npmjs.com/package/verfix',
+    codeRepository: 'https://github.com/verfix-dev/verfix',
+    license: 'https://github.com/verfix-dev/verfix/blob/main/LICENSE.md',
+    softwareRequirements: 'Node.js 20+',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+    author: {
+      '@type': 'Organization',
+      name: 'Verfix',
+      url: 'https://github.com/verfix-dev',
+    },
+  })} />
 </head>
 <body>
   <nav class="site-nav" aria-label="Main navigation">
@@ -74,13 +106,14 @@ const {
         <a href="https://github.com/verfix-dev/verfix" target="_blank" rel="noopener noreferrer">GitHub</a>
         <a href="https://www.npmjs.com/package/verfix" target="_blank" rel="noopener noreferrer">npm</a>
         <a href="/docs">Docs</a>
+        <a href="/llms.txt" target="_blank" rel="noopener noreferrer">llms.txt</a>
         <a href="/telemetry">Telemetry</a>
         <a href="https://github.com/verfix-dev/verfix/blob/main/LICENSE.md" target="_blank" rel="noopener noreferrer">Apache 2.0</a>
       </nav>
     </div>
     <div class="footer-bottom">
       <span>verfix</span>
-      <span class="footer-version">v0.2.10</span>
+      <span class="footer-version">v0.3.6</span>
     </div>
   </footer>
 </body>

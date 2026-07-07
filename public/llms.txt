@@ -1,9 +1,16 @@
 # Verfix
-> Browser verification runtime for AI-generated web apps
+> Local-first browser verification runtime for AI-generated web apps
 
 Verfix enables AI coding agents to verify real browser behavior after making UI changes.
 Agents get structured JSON output with typed failure classifications and actionable fix hints.
-Humans get an execution timeline with full observability.
+Everything runs in a single Node.js process — no Docker, no cloud, no accounts.
+
+Agent-first, not agent-adjacent: the agent writes the flow (reads source, finds the real
+selector), runs it, diagnoses the failure type, decides whether to fix the flow/config or the
+app, retries, and escalates to a human only when stuck. This is "loop engineering" — designing
+the goal/verifier/state/stop-condition/escalation of an agent's iteration loop — and Verfix is the
+verifier half of it: typed assertions decide pass/fail, JSON output carries state between
+iterations, exit codes are the stop condition, show_command is the escalation path.
 
 ## Install
 npm install -g verfix
@@ -11,30 +18,37 @@ npm install -g verfix
 npx verfix init
 
 ## Quickstart
-verfix init                                    # interactive setup wizard
-verfix start                                   # start the Docker runtime
-verfix start --show-browser                    # start with visible browser (debugging)
+verfix init                                    # interactive setup wizard (no Docker needed)
 verfix flows                                   # list available flows
 verfix run --flow <id> --output json           # run a specific flow
 verfix run --flow <id> --show-browser          # run with visible browser (debugging)
 verfix run --output json                       # run all flows
-verfix stop                                    # stop the runtime
+verfix show                                    # open the recorded Playwright trace for the newest run
+verfix probe --selector "<css>"                # dry-run a selector against the last run's DOM (~1s)
 
-## Output contract
+## Output contract (default, summarized)
 {
   "passed": boolean,
   "failures": [
     {
       "type": FailureType,
+      "flow": string | undefined,
+      "assertion": string | undefined,
       "selector": string | undefined,
       "detail": string | undefined,
       "fix_hint": string
     }
   ],
-  "timeline_url": string,
+  "timeline_url": string | null,
+  "trace_path": string,
+  "show_command": string,
+  "duration_ms": number,
+  "retry_count": number,
   "exit_code": 0 | 1,
-  "execution_id": string
+  "execution_id": string,
+  "source_changes": object | undefined
 }
+Pass `--full` to get the complete raw event timeline instead of the summary.
 
 ## Failure types (FailureType union)
 - selector_not_found    — CSS/testId selector matched zero elements in DOM
@@ -46,28 +60,41 @@ verfix stop                                    # stop the runtime
 - timeout               — An operation exceeded the configured timeout
 - assertion_failed      — Generic fallback; check fix_hint for details
 
+Exit codes: 0 = pass, 1 = verification failure, 2 = setup error (bad config, unknown flow, etc.)
+
 ## Assertion types
 - page_loaded           — Page loaded without navigation error
 - selector_visible      — Element is present and visible
-- text_visible          — Text string appears on page
+- text_visible          — Text string appears on page (optional `selector` scopes the search)
 - url_contains          — Current URL contains substring
 - title_contains        — Page title contains substring
-- no_console_errors     — No console.error() calls during flow
-- network_request_success — Network request to URL pattern returned 2xx
+- no_console_errors     — No console.error() calls during flow (optional `exclude`: regex array)
+- network_request_success — Network request to URL pattern returned 2xx (optional `acceptStatuses`: number array)
+
+## Flow step actions
+navigate, click, type, press, select_option, check, uncheck, hover, upload_file,
+wait_for_selector, wait_for_url, wait_for_network_idle
+Any step accepts `optional: true` (skip on failure) and `frame` (target inside an iframe).
 
 ## When to use Verfix
 After editing React components, forms, routes, buttons, or any UI code that affects user flows.
 
 ## Config file (verfix.config.json)
+`verfix init` writes this with an EMPTY flows: [] — no preset library, no scaffolding prompt.
+The agent writes each flow itself, on demand, by reading the app's source for real selectors.
+Example of a flow an agent would add:
 {
   "baseUrl": "http://localhost:3000",
-  "mode": "assisted",
+  "mode": "strict",
+  "selectors": { "emailInput": "input[type=email]" },
+  "sourceCodePolicy": "warn",
   "flows": [
     {
       "id": "login",
+      "clearState": true,
+      "saveState": "auth",
       "steps": [
-        { "action": "navigate", "url": "/login" },
-        { "action": "type", "selector": "[data-testid=email]", "value": "test@example.com" },
+        { "action": "type", "selector": "emailInput", "value": "test@example.com" },
         { "action": "type", "selector": "[data-testid=password]", "value": "password123" },
         { "action": "click", "selector": "[data-testid=submit]" }
       ],
@@ -79,36 +106,39 @@ After editing React components, forms, routes, buttons, or any UI code that affe
   ]
 }
 
+## Config-first verification (important for agents)
+When a selector fails, fix it in config — the `selectors` alias map, a semantic selector, or let
+`assisted` mode heal it. Do NOT add a `data-testid` to source just to make a test pass; that's a
+last resort. Every run diffs the git working tree during the fix loop and reports `source_changes`;
+`sourceCodePolicy: "block"` fails the run if project source was edited to satisfy a selector.
+Full guide: https://verfix.dev/config-first-verification
+
 ## Agent retry loop (pseudocode)
 for attempt in range(maxRetries):
     result = run("verfix run --flow login --output json")
     if result.passed:
         break
     for failure in result.failures:
-        apply_fix(failure.fix_hint)
+        apply_fix(failure.fix_hint)  # fix the flow/config first, the app only for real bugs
 else:
-    open_timeline(result.timeline_url)  # surface to human
+    open_trace(result.show_command)  # surface to human, e.g. `verfix show exec_abc123`
 
 ## Requirements
-- Docker Desktop (running)
-- Node.js 20.20.0+
-
-## Hybrid Browser Mode
-Verfix uses a dual browser execution model:
-- **Host mode** (default on macOS/Windows): Workers run natively on the host machine for direct localhost access. Uses the slim server image (`verfix-server-slim`) with SQLite.
-- **Container mode** (default on Linux): Workers run inside Docker with `--network=host`. Uses the full server image with PostgreSQL.
-- Override via `VERFIX_BROWSER_MODE=host|container`.
-- Use `--show-browser` flag on `start` or `run` for a visible headful browser window.
+- Node.js 20+ — that's it. No Docker, no services, no cloud.
+- First run downloads Chromium (~130MB, one-time, cached in ~/.cache/ms-playwright).
 
 ## Execution modes
-- strict      — Deterministic, no AI. Best for CI/CD.
-- assisted    — Strict first, semantic + AI fallback if selector breaks. Best for active development.
-- exploratory — Natural language task, AI navigates. Not CI-grade.
+- strict      — Deterministic, no AI, no key needed. Best for CI/CD. (default)
+- assisted    — Strict first, semantic + AI fallback if selector breaks. Works without a key (semantic tier only). Best for active development.
+- exploratory — Natural language task, AI navigates. Requires an AI key. Not CI-grade.
 
-## Runtime defaults
-- Dashboard: http://localhost:3610
-- API: http://localhost:3611
-- Ports auto-increment if occupied (3612/3613, 3614/3615, ...)
+## AGENTS.md
+`verfix init` writes a compact AGENTS.md stub plus a full reference at .verfix/INSTRUCTIONS.md.
+Read natively by Codex, Cursor, Copilot, Kilo, opencode, Zed, Jules, and more.
+
+## Server mode (opt-in, not needed by default)
+Docker-based API + queue + timeline dashboard, for the future hosted CI product. Opt in with
+`--server` on init/run/start/stop/logs/update. See https://verfix.dev/self-hosting
 
 ## Docs
 https://verfix.dev/docs

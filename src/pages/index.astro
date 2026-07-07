@@ -2,9 +2,67 @@
 import MarketingLayout from '../layouts/MarketingLayout.astro';
 import TerminalDemo from '../components/TerminalDemo.astro';
 import CopyButton from '../components/CopyButton.astro';
+
+const agentPrompt = `Set up Verfix in this project to verify UI changes after you make them.
+
+1. Run: npx verfix init --yes (strict mode, no AI key needed)
+2. Read AGENTS.md and .verfix/INSTRUCTIONS.md for the full workflow
+3. From now on, after any UI change: write or update the relevant flow in
+   verfix.config.json using the real selector from the component you just
+   edited, run "verfix run --flow <id> --output json", and fix the failure
+   (in the flow/config first — only touch app source for a genuine bug)
+   before calling the task done.`;
+
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Is Verfix an AI agent?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'No. Verfix is the execution infrastructure for AI agents — the observability, retry mechanics, and structured output that let an agent verify its own UI changes.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Do I need Docker, an account, or AI to use Verfix?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: "No to all three. Strict mode (the default) runs entirely in-process on Node.js 20+, needs no AI key, and there's no hosted SaaS to sign up for. Docker is only needed for the opt-in --server runtime, used by the future hosted CI product.",
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Will an agent rewrite my app to make a broken test pass?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: "That's the failure mode Verfix is built to prevent. Agents are steered to fix the flow, not the app source, and a git-baseline source guard can block a run that edits project code to satisfy a selector.",
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What is loop engineering?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: "Designing the goal, verifier, state, stop condition, and escalation of an agent's iteration loop, instead of prompting turn by turn. Verfix is the verifier half — typed pass/fail, JSON state between iterations, exit codes as the stop condition, and a hand-off to a human when it's stuck.",
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What does Verfix cost?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Nothing. Verfix is free and open source under the Apache 2.0 license.',
+      },
+    },
+  ],
+};
 ---
 
 <MarketingLayout>
+  <script type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />
   <main>
 
     <!-- ── HERO ─────────────────────────────────────────────────────── -->
@@ -12,7 +70,7 @@ import CopyButton from '../components/CopyButton.astro';
       <div class="hero-left">
         <div class="hero-badge">
           <span class="hero-badge-dot"></span>
-v0.2.10 — now on npm
+v0.3.6 — now on npm
         </div>
 
         <h1 class="hero-headline">
@@ -22,8 +80,8 @@ v0.2.10 — now on npm
         </h1>
 
         <p class="hero-sub">
-          Agents write UI code. Verfix verifies it works.<br />
-          Structured JSON for agents. Execution timeline for humans.
+          Agents write UI code. Verfix verifies it works.<br class="hero-sub-break" />
+          Local-first, no Docker — structured JSON for agents, a recorded trace for humans.
         </p>
 
         <div class="hero-actions">
@@ -31,14 +89,24 @@ v0.2.10 — now on npm
             <code class="install-cmd">npx verfix init</code>
             <CopyButton text="npx verfix init" label="Copy" />
           </div>
-          <a
-            href="https://github.com/verfix-dev/verfix"
-            class="hero-link"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View on GitHub →
-          </a>
+
+          <div class="hero-links">
+            <a
+              href="https://github.com/verfix-dev/verfix"
+              class="hero-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View on GitHub →
+            </a>
+            <span class="hero-links-divider" aria-hidden="true">·</span>
+            <CopyButton
+              text={agentPrompt}
+              label="Copy setup prompt for your agent"
+              variant="text"
+              class="hero-link"
+            />
+          </div>
         </div>
       </div>
 
@@ -85,19 +153,21 @@ v0.2.10 — now on npm
       <p class="section-label">How it works</p>
       <h2 class="section-title">Three steps from zero to verified</h2>
       <p class="section-sub">
-        One command to set up. One command to run. Agents get structured output.
-        Humans get full observability.
+        This is <a href="/agent-integration/">loop engineering</a>: a goal, a verifier, and a stop
+        condition — not another model grading its own work. Verfix is the verifier.
       </p>
 
       <div class="steps-grid">
         <div class="step-card">
           <p class="step-index">STEP 01</p>
           <p class="step-cmd">verfix init</p>
-          <h3 class="step-title">Configure in 60 seconds</h3>
+          <h3 class="step-title">Configure in 30 seconds</h3>
           <p class="step-desc">
-            The wizard starts the Docker runtime, detects your app's URL, scaffolds a
-            <code class="inline-code">verfix.config.json</code> flow library, and generates
-            <code class="inline-code">AGENTS.md</code> so coding agents know how to use Verfix.
+            The wizard detects your app's URL, makes sure Chromium is available (no Docker,
+            just Node.js), and generates <code class="inline-code">AGENTS.md</code> — read
+            natively by Claude Code, Cursor, Codex, and Copilot — plus an empty
+            <code class="inline-code">verfix.config.json</code>. No preset flows — the agent
+            writes the first one from your actual source.
           </p>
         </div>
         <div class="step-card">
@@ -105,71 +175,95 @@ v0.2.10 — now on npm
           <p class="step-cmd">verfix run --flow &lt;id&gt;</p>
           <h3 class="step-title">Agent-driven verify loop</h3>
           <p class="step-desc">
-            Every UI change triggers a flow run. Playwright executes it in an isolated browser
-            context. The agent receives <code class="inline-code">passed</code>,
+            Every UI change triggers a flow run — in-process, in your terminal, no queue to
+            poll. The agent receives <code class="inline-code">passed</code>,
             <code class="inline-code">failures[]</code>, and <code class="inline-code">fix_hint</code>.
-            It fixes and retries autonomously.
+            It fixes and retries autonomously, and a source guard flags it if it tries to
+            rewrite your app code instead of the flow.
           </p>
         </div>
         <div class="step-card">
           <p class="step-index">STEP 03</p>
-          <p class="step-cmd">open timeline_url</p>
-          <h3 class="step-title">Human-readable timeline</h3>
+          <p class="step-cmd">verfix show &lt;id&gt;</p>
+          <h3 class="step-title">Recorded trace, on demand</h3>
           <p class="step-desc">
-            If the agent can't self-fix, <code class="inline-code">timeline_url</code> surfaces
-            the full execution — every action, navigation, console error, network request, and
-            failure screenshot.
+            If the agent can't self-fix, <code class="inline-code">verfix show</code> opens the
+            full Playwright trace for that run — every action, navigation, console error,
+            network request, and failure screenshot, replayed exactly.
           </p>
         </div>
       </div>
     </section>
 
-    <!-- ── EXECUTION MODES ───────────────────────────────────────────── -->
+    <!-- ── SCREENSHOTS ──────────────────────────────────────────────────
+         Placeholder for product screenshots (e.g. the Playwright trace
+         viewer via `verfix show`, a terminal recording of the fix loop,
+         or the verfix.config.json flow library in an editor).
+         Uncomment and fill in with real assets, then remove this comment.
+
     <section class="page-section" style="padding-top: 0;">
-      <p class="section-label">Execution modes</p>
-      <h2 class="section-title">Right tool for every stage</h2>
+      <p class="section-label">See it in action</p>
+      <h2 class="section-title">The trace, not a video</h2>
       <p class="section-sub">
-        Each flow can override the global mode — stable flows use strict,
-        evolving ones use assisted.
+        Every run records a full Playwright trace — every action, console log, network
+        request, and failure screenshot, replayed exactly.
       </p>
 
-      <div class="modes-grid">
-        <div class="mode-card">
+      <div class="screenshot-frame">
+        <img src="/screenshots/verfix-show-trace.png" alt="verfix show opening a Playwright trace viewer with a failed selector highlighted" loading="lazy" />
+      </div>
+    </section>
+
+    ────────────────────────────────────────────────────────────────── -->
+
+    <!-- ── VERIFICATION MODES ───────────────────────────────────────── -->
+    <section class="page-section" style="padding-top: 0;">
+      <p class="section-label">Verification modes</p>
+      <h2 class="section-title">Deterministic by default, AI when it earns it</h2>
+      <p class="section-sub">
+        Each flow can override the global mode — stable flows stay strict, evolving ones use
+        assisted.
+      </p>
+
+      <div class="verify-table">
+        <div class="verify-row verify-row-head">
+          <span>Mode</span><span>Selector strategy</span><span>AI</span><span>Best for</span>
+        </div>
+        <div class="verify-row">
           <span class="mode-tag tag-strict">strict</span>
-          <h3 class="mode-name">Strict</h3>
-          <p class="mode-desc">
-            Fully deterministic. CSS selectors and <code class="inline-code">data-testid</code>
-            only. No AI fallback. If a selector breaks, it fails explicitly — no ambiguity.
-          </p>
-          <p class="mode-best">Best for: <span>CI/CD, regression testing</span></p>
+          <span>CSS / <code class="inline-code">data-testid</code> only, fails explicitly</span>
+          <span class="row-dim">none</span>
+          <span>CI/CD, regression</span>
         </div>
-        <div class="mode-card">
+        <div class="verify-row">
           <span class="mode-tag tag-assisted">assisted</span>
-          <h3 class="mode-name">Assisted</h3>
-          <p class="mode-desc">
-            Deterministic first, AI fallback if selectors break. Tries selector → semantic
-            discovery → AI resolver before failing. Self-healing without compromising
-            correctness.
-          </p>
-          <p class="mode-best">Best for: <span>Active development, new flows</span></p>
+          <span>Selector → semantic → AI fallback, in that order</span>
+          <span>on failure</span>
+          <span>Active development</span>
         </div>
-        <div class="mode-card">
+        <div class="verify-row">
           <span class="mode-tag tag-exploratory">exploratory</span>
-          <h3 class="mode-name">Exploratory</h3>
-          <p class="mode-desc">
-            Natural language task. The AI navigates, reasons, and verifies on its own. Optimized
-            for discovery. Clearly marked in output — not CI-grade.
-          </p>
-          <p class="mode-best">Best for: <span>Ad-hoc QA, unknown flows</span></p>
+          <span>Natural-language task, AI plans and drives</span>
+          <span>core driver</span>
+          <span>Ad-hoc QA, discovery</span>
         </div>
       </div>
+
+      <p class="section-sub" style="margin-top: 1.75rem; margin-bottom: 0; max-width: 640px;">
+        Whichever mode fails, the fix goes into the flow, not your app — the easy failure mode for
+        an agent under pressure is sprinkling <code class="inline-code">data-testid</code> through
+        your components until a test goes green. A git-baseline <strong>source guard</strong> reports
+        every project file an agent touches mid-fix, and <code class="inline-code">sourceCodePolicy:
+        "block"</code> can fail the run until a bogus edit is reverted. See
+        <a href="/config-first-verification/">Config-First Verification</a>.
+      </p>
     </section>
 
     <!-- ── QUICKSTART ────────────────────────────────────────────────── -->
     <section class="page-section" style="padding-top: 0;">
       <p class="section-label">Quickstart</p>
       <h2 class="section-title">Up in four commands</h2>
-      <p class="section-sub">Requirements: Docker Desktop (running), Node.js 20.20.0+</p>
+      <p class="section-sub">Requirements: Node.js 20+. That's it — no Docker, no accounts, no cloud.</p>
 
       <div>
         <div class="qs-step">
@@ -193,7 +287,9 @@ v0.2.10 — now on npm
             </div>
             <p class="qs-note">
               The wizard detects your app URL, creates verfix.config.json, and writes AGENTS.md.
-              Use <code class="inline-code">verfix init --yes</code> for non-interactive mode.
+              Default mode is <code class="inline-code">strict</code> — fully deterministic,
+              no AI key needed. Use <code class="inline-code">verfix init --yes</code> for
+              non-interactive mode.
             </p>
           </div>
         </div>
@@ -206,25 +302,91 @@ v0.2.10 — now on npm
               <code class="qs-code">verfix run --flow login --output json</code>
               <CopyButton text="verfix run --flow login --output json" variant="icon" class="qs-copy-btn" />
             </div>
-            <p class="qs-note">Returns structured JSON. Exit code 0 on pass, 1 on failure.</p>
+            <p class="qs-note">Runs in-process. Returns structured JSON. Exit code 0 on pass, 1 on failure.</p>
           </div>
         </div>
 
         <div class="qs-step">
           <div class="qs-num">4</div>
           <div>
-            <p class="qs-label">Open the timeline</p>
+            <p class="qs-label">Inspect the trace</p>
             <div class="qs-code-wrap">
-              <code class="qs-code"># Copy timeline_url from output → open in browser</code>
+              <code class="qs-code">verfix show</code>
+              <CopyButton text="verfix show" variant="icon" class="qs-copy-btn" />
             </div>
             <p class="qs-note">
-              Full execution replay: every action, console log, network request, and screenshot.
-              Default: <code class="inline-code">http://localhost:3610/?executionId=exec_...</code>
+              Opens the newest run's full Playwright trace — every action, console log, network
+              request, and screenshot. Runs and traces persist under
+              <code class="inline-code">.verfix/runs/</code>.
             </p>
           </div>
         </div>
       </div>
     </section>
 
+    <!-- ── FAQ ────────────────────────────────────────────────────────── -->
+    <section class="page-section" style="padding-top: 0;">
+      <p class="section-label">FAQ</p>
+      <h2 class="section-title">Questions, answered</h2>
+
+      <div class="faq-list">
+        <details class="faq-item">
+          <summary class="faq-q">Is Verfix an AI agent?</summary>
+          <p class="faq-a">
+            No. Verfix is the <em>execution infrastructure</em> for AI agents — the observability,
+            retry mechanics, and structured output that let an agent verify its own UI changes.
+          </p>
+        </details>
+        <details class="faq-item">
+          <summary class="faq-q">Do I need Docker, an account, or AI to use it?</summary>
+          <p class="faq-a">
+            No to all three. <code class="inline-code">strict</code> mode (the default) runs
+            entirely in-process on Node.js 20+, needs no AI key, and there's no hosted SaaS to
+            sign up for. Docker is only needed for the opt-in <code class="inline-code">--server</code>
+            runtime, used by the future hosted CI product.
+          </p>
+        </details>
+        <details class="faq-item">
+          <summary class="faq-q">Will an agent rewrite my app to make a broken test pass?</summary>
+          <p class="faq-a">
+            That's the failure mode Verfix is built to prevent. See
+            <a href="/config-first-verification/">Config-First Verification</a> — agents are
+            steered to fix the flow, not your source, and a git-baseline source guard can block a
+            run that edits project code to satisfy a selector.
+          </p>
+        </details>
+        <details class="faq-item">
+          <summary class="faq-q">What is loop engineering?</summary>
+          <p class="faq-a">
+            Designing the goal, verifier, state, stop condition, and escalation of an agent's
+            iteration loop, instead of prompting turn by turn. Verfix is the verifier half —
+            typed pass/fail, JSON state between iterations, exit codes as the stop condition, and
+            a hand-off to a human when it's stuck.
+          </p>
+        </details>
+        <details class="faq-item">
+          <summary class="faq-q">What does it cost?</summary>
+          <p class="faq-a">
+            Nothing. Verfix is free and open source under the Apache 2.0 license.
+          </p>
+        </details>
+      </div>
+    </section>
+
   </main>
+
+  <!-- ── CLOSING CTA ──────────────────────────────────────────────────── -->
+  <section class="cta-band">
+    <div class="cta-inner">
+      <h2 class="cta-title">Verify your first flow in under 2 minutes</h2>
+      <p class="cta-sub">No Docker, no accounts, no cloud. Just Node.js and one command.</p>
+      <div class="cta-actions">
+        <div class="install-box cta-install-box">
+          <code class="install-cmd">npx verfix init</code>
+          <CopyButton text="npx verfix init" label="Copy" />
+        </div>
+        <a href="/getting-started/" class="cta-link">Read the docs →</a>
+      </div>
+    </div>
+  </section>
 </MarketingLayout>

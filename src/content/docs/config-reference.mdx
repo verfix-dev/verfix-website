@@ -1,11 +1,12 @@
 ---
 title: Config Reference
-description: Every field in verfix.config.json — flows, steps, assertions, modes, and selectors.
+description: Every field in verfix.config.json — flows, steps, assertions, modes, selectors, and state reuse.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-`verfix.config.json` is the **Flow Library** for your project. It lives in your project root and is created by `verfix init`.
+`verfix.config.json` is the **Flow Library** for your project. It lives in your project root and
+is created by `verfix init`.
 
 ## Full annotated example
 
@@ -13,6 +14,11 @@ import { Aside } from '@astrojs/starlight/components';
 {
   "baseUrl": "http://localhost:3000",
   "mode": "assisted",
+  "selectors": {
+    "emailInput": "input[type=email]",
+    "submitBtn": "#login-form button[type=submit]"
+  },
+  "sourceCodePolicy": "warn",
   "flows": [
     {
       "id": "homepage-smoke",
@@ -25,15 +31,27 @@ import { Aside } from '@astrojs/starlight/components';
       ]
     },
     {
-      "id": "contact-form",
+      "id": "login",
       "mode": "strict",
+      "clearState": true,
+      "saveState": "auth",
       "steps": [
-        { "action": "navigate", "url": "/contact" },
-        { "action": "type", "selector": "[data-testid=name]", "value": "Test User" },
-        { "action": "click", "selector": "[data-testid=submit]" }
+        { "action": "type", "selector": "emailInput", "value": "${TEST_EMAIL}" },
+        { "action": "type", "selector": "password", "testId": "password", "value": "${TEST_PASSWORD}" },
+        { "action": "click", "selector": "submitBtn" }
       ],
       "assertions": [
-        { "type": "text_visible", "value": "Thank you" }
+        { "type": "network_request_success", "value": "/api/auth/login", "acceptStatuses": [200, 409] }
+      ]
+    },
+    {
+      "id": "dashboard-load",
+      "useState": "auth",
+      "steps": [
+        { "action": "navigate", "url": "/dashboard" }
+      ],
+      "assertions": [
+        { "type": "text_visible", "value": "Total Declarations", "selector": "[data-testid=stats-card]" }
       ]
     }
   ]
@@ -46,12 +64,15 @@ import { Aside } from '@astrojs/starlight/components';
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `baseUrl` | `string` | Yes | — | Base URL of your app. All `navigate` steps with relative URLs are resolved against this. |
-| `mode` | `"strict" \| "assisted" \| "smoke" \| "exploratory"` | No | `"strict"` | Default execution mode for all flows. Individual flows can override this. |
+| `baseUrl` | `string` | Yes | — | Base URL of your app. All `navigate` steps with relative URLs are resolved against this. Supports `${VAR}` interpolation. |
+| `mode` | `"strict" \| "assisted" \| "exploratory"` | No | `"strict"` | Default execution mode for all flows. Individual flows can override this. |
+| `task` | `string` | No | — | Natural language task, required when `mode` is `exploratory` and no flows are given. |
 | `flows` | `Flow[]` | Yes | — | Array of verification flows. |
 | `assertions` | `AssertionDefinition[]` | No | — | Global assertions applied to every flow if the flow has none. |
-| `selectors` | `Record<string, string>` | No | — | Named selector map. Referenced by key in step targets. |
-| `metadata` | `object` | No | — | Arbitrary metadata passed to the API (e.g. `{ "framework": "nextjs" }`). |
+| `selectors` | `Record<string, string>` | No | `{}` | Alias map of logical name → real selector. Steps referencing an alias are resolved at run time — this is the core of [config-first](/config-first-verification/) target resolution. |
+| `sourceCodePolicy` | `"warn" \| "block" \| "off"` | No | `"warn"` | What happens when project source is edited during a verify loop. See [Config-First Verification](/config-first-verification/). |
+| `browser` | `{ channel?, headless? }` | No | `{}` | `{ "channel": "chrome" }` reuses your installed Chrome/Edge and skips the Chromium download. `{ "headless": false }` shows the browser window. |
+| `metadata` | `object` | No | — | Arbitrary metadata passed through to run output (e.g. `{ "framework": "nextjs" }`). |
 | `timeout` | `number` | No | `15000` | Default timeout in milliseconds for steps and assertions. |
 | `retries` | `number` | No | `2` | Number of retries on failure before declaring the flow failed. |
 
@@ -65,75 +86,122 @@ Each item in the `flows` array:
 |-------|------|----------|-------------|
 | `id` | `string` | Yes | Unique identifier for this flow. Used with `--flow <id>`. |
 | `name` | `string` | No | Alternative to `id`. If both provided, `id` takes precedence. |
-| `mode` | `"strict" \| "assisted" \| "smoke" \| "exploratory"` | No | Overrides the global mode for this flow only. |
+| `mode` | `"strict" \| "assisted"` | No | Overrides the global mode for this flow only. `"exploratory"` is not valid per-flow — it only applies as the top-level mode. |
 | `steps` | `FlowStep[]` | Yes | Ordered list of browser actions. |
 | `assertions` | `AssertionDefinition[]` | No | Assertions to check after all steps complete. |
+| `clearState` | `boolean` | No | Clears cookies and `localStorage`/`sessionStorage` before this flow runs. Use on a flow that must start logged-out. Does not clear IndexedDB or service workers. |
+| `saveState` | `string` | No | After this flow's steps **and assertions** pass, saves the browser's cookies (including `httpOnly`), `localStorage`, and IndexedDB under this name in `.verfix/state/` (never committed). Put it on your login flow. `sessionStorage` is not captured. |
+| `useState` | `string` | No | Restores the named state before the run navigates, so the flow starts already logged in. Fails normally if the state doesn't exist yet or has expired — rerun the `saveState` flow to recreate it. One state name per run. |
+| `skip` | `boolean` | No | Quarantines the flow — excluded from a full `verfix run`, but still runs if named explicitly via `--flow <id>`. |
+| `skipReason` | `string` | No | Human-readable reason shown alongside a skipped flow in `verfix flows`. |
 
 ---
 
 ## Step actions
 
-Steps are the browser actions executed in order before assertions run.
+Steps are the browser actions executed in order before assertions run. Any step accepts:
+
+- `optional: true` — if the step fails for any reason within its `timeout`, it's skipped (reported in `skipped_optional_steps`) instead of aborting the flow. Use it for a UI branch that may or may not appear.
+- `frame: "<css selector>"` — resolves the step's target inside an `<iframe>` matching that selector (payment widgets, embedded editors). One frame level; AI selector-healing does not apply inside frames.
 
 ### navigate
 
-Navigate to a URL. Relative paths are resolved against `baseUrl`.
-
 ```json
 { "action": "navigate", "url": "/login" }
-{ "action": "navigate", "url": "https://example.com/page" }
 ```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `action` | `"navigate"` | Yes | — |
-| `url` | `string` | Yes | Absolute or relative URL |
+| Field | Type | Required |
+|-------|------|----------|
+| `url` | `string` | Yes — absolute or relative (resolved against `baseUrl`), supports `${VAR}` |
 
 ### click
 
-Click an element.
-
 ```json
 { "action": "click", "selector": "[data-testid=submit]" }
-{ "action": "click", "testId": "submit-button" }
+{ "action": "click", "text": "Logout previous session", "optional": true, "timeout": 2000 }
 ```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `action` | `"click"` | Yes | — |
-| `selector` | `string` | One of | CSS selector |
-| `testId` | `string` | One of | Shorthand for `[data-testid=<value>]` |
-| `text` | `string` | One of | Finds element by visible text content |
-| `timeout` | `number` | No | Step-level timeout override in ms |
+| Field | Type | Required |
+|-------|------|----------|
+| `selector` / `testId` / `text` | `string` | One of — target element (`testId` is shorthand for `[data-testid=<value>]`) |
+| `timeout` | `number` | No — step-level timeout override |
 
 ### type
 
-Type text into an input.
+```json
+{ "action": "type", "selector": "emailInput", "value": "test@example.com" }
+```
+| Field | Type | Required |
+|-------|------|----------|
+| `selector` / `testId` / `text` | `string` | One of — target element |
+| `value` | `string` | Yes — text to type, supports `${VAR}` |
+
+### press
 
 ```json
-{ "action": "type", "selector": "[data-testid=email]", "value": "test@example.com" }
+{ "action": "press", "key": "Enter" }
+{ "action": "press", "selector": "searchInput", "key": "Escape" }
 ```
+Sends a keyboard key (Playwright key name — `"Enter"`, `"Escape"`, `"Tab"`, etc.) on a target
+locator if given, otherwise at the page level. For UIs that submit or react to `keydown` rather
+than form submission.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `action` | `"type"` | Yes | — |
-| `selector` / `testId` / `text` | `string` | One of | Target element |
-| `value` | `string` | Yes | Text to type |
-| `timeout` | `number` | No | Step-level timeout override in ms |
+### select_option
+
+```json
+{ "action": "select_option", "selector": "countrySelect", "value": "US" }
+```
+Picks a `<select>` option by value or visible label.
+
+### check / uncheck
+
+```json
+{ "action": "check", "selector": "acceptTerms" }
+{ "action": "uncheck", "selector": "newsletterOptIn" }
+```
+Sets a checkbox/radio to a known state. Idempotent — unlike `click` on a checkbox, so reruns are
+deterministic regardless of the current state.
+
+### hover
+
+```json
+{ "action": "hover", "selector": "userMenu" }
+```
+Hovers to reveal hover-only UI (dropdown menus, tooltips).
+
+### upload_file
+
+```json
+{ "action": "upload_file", "selector": "avatarInput", "file": "fixtures/avatar.png" }
+{ "action": "upload_file", "selector": "csvInput", "file": { "name": "note.csv", "content": "a,b\n1,2", "mimeType": "text/csv" } }
+```
+| Field | Type | Description |
+|-------|------|-------------|
+| `file` (path) | `string` | Project-relative fixture path (`${VAR}` substitution supported) |
+| `file` (inline) | `{ name, content, mimeType, encoding? }` | CI-safe inline content materialized at run time, no filesystem dependency. `encoding: "base64"` for binary. `verfix validate` warns above 64KB — use a fixture path for larger files. |
+
+Targets the `<input type=file>` by attachment, not visibility, since real UIs hide it behind
+styled buttons.
 
 ### wait_for_selector
-
-Wait for an element to appear before proceeding.
 
 ```json
 { "action": "wait_for_selector", "selector": "[data-testid=dashboard]" }
 ```
+Waits for an element to appear before proceeding.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `action` | `"wait_for_selector"` | Yes | — |
-| `selector` / `testId` | `string` | One of | Target element |
-| `timeout` | `number` | No | Step-level timeout override in ms |
+### wait_for_url
+
+```json
+{ "action": "wait_for_url", "value": "/dashboard" }
+```
+Waits until the URL contains a substring — same semantics as the `url_contains` assertion. For
+client-side redirects.
+
+### wait_for_network_idle
+
+```json
+{ "action": "wait_for_network_idle" }
+```
+Waits for network activity to settle. For background-loaded data that doesn't block a selector.
 
 ---
 
@@ -143,20 +211,16 @@ Assertions are checked after all steps complete. Each has a `type` field.
 
 ### page_loaded
 
-Verifies the page loaded without a navigation error.
-
 ```json
 { "type": "page_loaded" }
 ```
+Verifies the page loaded without a navigation error.
 
 ### selector_visible
-
-Verifies an element matching the selector is present and visible.
 
 ```json
 { "type": "selector_visible", "selector": "[data-testid=dashboard]" }
 ```
-
 | Field | Type | Required |
 |-------|------|----------|
 | `selector` | `string` | Yes |
@@ -164,74 +228,83 @@ Verifies an element matching the selector is present and visible.
 
 ### text_visible
 
-Verifies a text string appears on the page.
-
 ```json
 { "type": "text_visible", "value": "Welcome back" }
+{ "type": "text_visible", "value": "Total Declarations", "selector": "[data-testid=stats-card]" }
 ```
+Verifies a text string appears on the page. Passes if *any* visible occurrence matches. Add the
+optional `selector` field to scope the search to matches inside a specific element — useful when
+the text is repeated elsewhere on the page (a stats-card title also appearing in a nav item, say).
 
 | Field | Type | Required |
 |-------|------|----------|
 | `value` | `string` | Yes |
+| `selector` | `string` | No — scopes the search |
 | `timeout` | `number` | No |
 
 ### url_contains
 
-Verifies the current URL contains a substring.
-
 ```json
 { "type": "url_contains", "value": "/dashboard" }
 ```
-
-| Field | Type | Required |
-|-------|------|----------|
-| `value` | `string` | Yes |
+Verifies the current URL contains a substring.
 
 ### title_contains
-
-Verifies the page `<title>` contains a substring.
 
 ```json
 { "type": "title_contains", "value": "Dashboard" }
 ```
-
-| Field | Type | Required |
-|-------|------|----------|
-| `value` | `string` | Yes |
+Verifies the page `<title>` contains a substring.
 
 ### no_console_errors
 
-Fails if any `console.error()` calls were detected during the flow.
-
 ```json
 { "type": "no_console_errors" }
+{ "type": "no_console_errors", "exclude": ["ACTIVE_SESSION_EXISTS"] }
 ```
+Fails if any `console.error()` calls were detected during the flow. `exclude` is an array of
+regex patterns — matching console errors are ignored instead of failing the assertion, for
+known/expected warnings (e.g. a third-party script notice), without silencing every error.
 
 ### network_request_success
 
-Verifies a network request to a URL pattern returned a 2xx status.
-
 ```json
 { "type": "network_request_success", "value": "/api/user" }
+{ "type": "network_request_success", "value": "/api/auth/login", "acceptStatuses": [200, 409] }
 ```
+Verifies a network request to a URL pattern returned a 2xx status. `acceptStatuses` replaces the
+default 200–399 range entirely when set — useful for endpoints with more than one valid outcome
+(e.g. `200` on login success, `409` when a session is already active) without branching the flow.
 
-| Field | Type | Required |
-|-------|------|----------|
-| `value` | `string` | Yes — URL pattern to match |
+Both `no_console_errors` and `network_request_success` failures name the concrete matched request
+(method, URL, status) or console error text in `detail`/`fix_hint`, so an agent can tell whether to
+add an exception above or treat it as a real bug.
 
 ---
 
-## Preset flow scaffolds
+## `${VAR}` environment variable interpolation
 
-`verfix init` can scaffold these flows from the preset library:
+Step `value`/`url`, assertion `value`, and `baseUrl` may reference `${VAR_NAME}`, resolved from
+`process.env` at run time (including anything set in `.verfix/.env`) — so secrets never need to be
+committed in `verfix.config.json`. An unset variable fails the run immediately, naming the missing
+variable and its field path, rather than typing the literal `${VAR_NAME}` string into a form field.
 
-| Flow ID | Steps |
-|---------|-------|
-| `login` | navigate `/login` → type email → type password → click submit |
-| `dashboard-load` | navigate `/dashboard` → assert page_loaded + selector_visible + no_console_errors |
-| `signup` | navigate `/signup` → type name/email/password → click submit |
-| `checkout` | navigate `/checkout` → type card number → click pay button |
+```json
+{ "action": "type", "selector": "emailInput", "value": "${TEST_EMAIL}" }
+```
+
+---
+
+## Where flows come from
+
+`verfix init` writes `verfix.config.json` with `flows: []` — empty. There's no preset library and
+no scaffolding step, because Verfix has no way to know your app's routes, forms, or components
+ahead of time. Flows are meant to be **written by the coding agent**, on demand, as part of the
+edit → verify → fix loop: it reads the component it just touched, finds the real selector, and
+adds (or updates) a flow — see [Config-First Verification](/config-first-verification/) and the
+[Agent Integration](/agent-integration/) guide for the exact decision hierarchy an agent follows.
 
 <Aside type="tip">
-Each flow in the config can override the global `mode`. Stable flows that pass reliably should use `"mode": "strict"`. New flows under active development can use `"mode": "assisted"`.
+Each flow in the config can override the global `mode`. Stable flows that pass reliably should use
+`"mode": "strict"`. New flows under active development can use `"mode": "assisted"`.
 </Aside>
