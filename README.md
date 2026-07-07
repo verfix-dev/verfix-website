@@ -1,6 +1,5 @@
 # Verfix Website
 
-[![Deploy Website](https://github.com/verfix-dev/verfix-website/actions/workflows/deploy-website.yml/badge.svg)](https://github.com/verfix-dev/verfix-website/actions/workflows/deploy-website.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 > Official website and documentation for [Verfix](https://github.com/verfix-dev/verfix) — Browser verification runtime for AI-generated web apps.
@@ -44,7 +43,7 @@ Visit `http://localhost:4321` to see the site.
 
 ```
 verfixdev/
-├── .github/              # GitHub Actions workflows & templates
+├── .github/              # Issue and PR templates
 ├── public/               # Static assets (robots.txt, og-image.svg, llms.txt)
 ├── src/
 │   ├── assets/          # SVG logo and images
@@ -107,11 +106,9 @@ Reusable components live in `src/components/`:
 
 ## 🚢 Deployment
 
-The site auto-deploys to Cloudflare Pages on push to `main`:
-
-1. GitHub Actions builds the site (`npm run build`)
-2. Cloudflare Pages serves from `./dist/`
-3. Available at `verfix.dev`
+The site auto-deploys to Cloudflare Pages on push to `main` — Cloudflare Pages' Git integration
+builds the site (`npm run build`) and serves it from `./dist/` directly; there's no separate
+GitHub Actions workflow in this repo. Available at `verfix.dev`.
 
 Manual deployment:
 
