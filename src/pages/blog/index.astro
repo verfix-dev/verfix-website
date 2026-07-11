@@ -1,0 +1,101 @@
+---
+import MarketingLayout from '../../layouts/MarketingLayout.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog')).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+---
+
+<MarketingLayout
+  title="Blog — Verfix"
+  description="Writing on loop engineering, deterministic browser verification, and building AI coding agents that check their own work."
+>
+  <main class="bl-page">
+    <div class="bl-inner">
+      <h1 class="bl-title">Blog</h1>
+      <p class="bl-subtitle">Loop engineering, deterministic verification, and honest benchmarks.</p>
+
+      <ul class="bl-list">
+        {posts.map((post) => (
+          <li class="bl-item">
+            <a href={`/blog/${post.id}/`} class="bl-item-link">
+              <h2 class="bl-item-title">{post.data.title}</h2>
+              <p class="bl-item-desc">{post.data.description}</p>
+              <p class="bl-item-meta">
+                <time datetime={post.data.pubDate.toISOString()}>
+                  {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </time>
+                <span class="bl-item-dot" aria-hidden="true">·</span>
+                {post.data.author}
+              </p>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </main>
+</MarketingLayout>
+
+<style>
+  .bl-page {
+    padding-top: 56px; /* offset fixed nav */
+  }
+  .bl-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+  }
+  .bl-title {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.5rem;
+    line-height: 1.1;
+  }
+  .bl-subtitle {
+    color: var(--vf-text-secondary);
+    font-size: 1rem;
+    margin-bottom: 3rem;
+  }
+  .bl-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .bl-item {
+    border-top: 1px solid var(--vf-border-subtle);
+  }
+  .bl-item:last-child {
+    border-bottom: 1px solid var(--vf-border-subtle);
+  }
+  .bl-item-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    padding: 1.75rem 0;
+    transition: opacity 0.15s ease;
+  }
+  .bl-item-link:hover { opacity: 0.8; }
+  .bl-item-link:hover .bl-item-title { color: var(--vf-green); }
+  .bl-item-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.5rem;
+    transition: color 0.15s ease;
+  }
+  .bl-item-desc {
+    color: var(--vf-text-secondary);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    margin-bottom: 0.75rem;
+  }
+  .bl-item-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--vf-text-tertiary);
+  }
+  .bl-item-dot { margin: 0 0.4em; }
+</style>

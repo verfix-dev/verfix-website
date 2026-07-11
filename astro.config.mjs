@@ -89,6 +89,10 @@ export default defineConfig({
         },
       },
       {
+        tag: 'link',
+        attrs: { rel: 'alternate', type: 'application/rss+xml', title: 'Verfix Blog', href: '/rss.xml' },
+      },
+      {
         tag: 'meta',
         attrs: { property: 'og:image', content: 'https://verfix.dev/verfixCard.png' },
       },

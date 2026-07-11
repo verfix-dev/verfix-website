@@ -9,6 +9,26 @@ For the full detailed commit history and changes, visit the [full CHANGELOG on G
 
 ---
 
+## v0.4.0 (2026-07-11) — Failure synthesis
+
+A field review concluded Verfix "did the capture work correctly — the gap is entirely in synthesis": runs already recorded the right artifacts, but hints were generic and nothing connected them. This release closes that gap — deterministically, no LLM anywhere in the pipeline.
+
+### Added
+- **`findings[]` — deterministic post-failure analysis.** Pure functions over the evidence a run already captured; each emits a typed finding (`code`, hypothesis-language `summary`, triggering `evidence`, a concrete `suggestion`) only when the evidence clearly supports one — silent when unsure, capped at 3, top finding rendered into `fix_hint`. Shipped analyzers: `stale_session` (a restored session met a 401/403 on an auth-ish endpoint), `blocking_overlay` (the selector was fine — an open dialog/overlay was covering the page, named by its accessible name), `prior_console_errors` (earlier console errors correlated with a later UI-shaped failure, with first/third-party detection).
+- **`page_state` — failure-time facts.** Every failure now reports what was observably true on the page when it happened: URL, title, open dialogs/overlays, and counts of prior console errors / failed requests. Facts only, no interpretation.
+- **`verfix show --timeline [--last N] [--filter type]`** — steps, console lines, and network requests interleaved chronologically around the failure.
+- **`verfix show --dom '<selector>'`** — query the run's saved DOM snapshot (also plain-text search).
+- **`selector_count` assertion** — assert an exact number of matches.
+- **`verfix run --base-url <url>`** — per-invocation base-URL override for preview deploys and per-PR environments.
+- **Diagnosis playbook in generated instructions.** `.verfix/INSTRUCTIONS.md` now teaches the escalation ladder — JSON facts/findings first, then `--timeline`, then `--dom` + `open_dialogs`, then full logs, and only then project source.
+
+### Changed
+- **`@verfix/engine` bumped to `0.2.0`.**
+
+### Fixed
+- **Intermittent second JSON document on stdout (#80)** that could corrupt `--output json` on first runs under a timing race with the bounded AI failure-summary call.
+- **`third_party` console-error labeling** — now hostname-based (with loopback/sibling-subdomain awareness) instead of origin-based, so an app's own API on a different localhost port is no longer mislabeled third-party.
+
 ## v0.3.6 (2026-07-07)
 
 ### Added

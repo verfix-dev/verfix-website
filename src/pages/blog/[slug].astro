@@ -1,0 +1,129 @@
+---
+import MarketingLayout from '../../layouts/MarketingLayout.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const formattedDate = post.data.pubDate.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+---
+
+<MarketingLayout title={`${post.data.title} — Verfix Blog`} description={post.data.description}>
+  <main class="bp-page">
+    <article class="bp-inner">
+      <a href="/blog" class="bp-back">← Blog</a>
+      <h1 class="bp-title">{post.data.title}</h1>
+      <p class="bp-meta">
+        <time datetime={post.data.pubDate.toISOString()}>{formattedDate}</time>
+        <span class="bp-dot" aria-hidden="true">·</span>
+        {post.data.author}
+      </p>
+      <div class="bp-content">
+        <Content />
+      </div>
+    </article>
+  </main>
+</MarketingLayout>
+
+<style>
+  .bp-page {
+    padding-top: 56px; /* offset fixed nav */
+  }
+  .bp-inner {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 4rem 2rem 6rem;
+  }
+  .bp-back {
+    display: inline-block;
+    color: var(--vf-text-secondary);
+    text-decoration: none;
+    font-size: 0.875rem;
+    margin-bottom: 2rem;
+    transition: color 0.15s ease;
+  }
+  .bp-back:hover { color: var(--vf-green); }
+  .bp-title {
+    font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    margin-bottom: 0.75rem;
+  }
+  .bp-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8125rem;
+    color: var(--vf-text-tertiary);
+    margin-bottom: 3rem;
+  }
+  .bp-dot { margin: 0 0.4em; }
+
+  .bp-content {
+    color: var(--vf-text-secondary);
+    font-size: 1.0625rem;
+    line-height: 1.75;
+  }
+  .bp-content :global(h2) {
+    color: var(--vf-text);
+    font-size: 1.375rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 2.75rem 0 1rem;
+  }
+  .bp-content :global(h3) {
+    color: var(--vf-text);
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 2rem 0 0.75rem;
+  }
+  .bp-content :global(p) {
+    margin-bottom: 1.25rem;
+  }
+  .bp-content :global(a) {
+    color: var(--vf-green);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(0, 217, 126, 0.35);
+  }
+  .bp-content :global(a:hover) {
+    border-bottom-color: var(--vf-green);
+  }
+  .bp-content :global(strong) {
+    color: var(--vf-text);
+    font-weight: 600;
+  }
+  .bp-content :global(em) {
+    font-style: italic;
+  }
+  .bp-content :global(ol),
+  .bp-content :global(ul) {
+    margin: 0 0 1.25rem 1.5rem;
+  }
+  .bp-content :global(li) {
+    margin-bottom: 0.5rem;
+  }
+  .bp-content :global(code) {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    color: var(--vf-amber);
+    background: rgba(245, 166, 35, 0.08);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .bp-content :global(blockquote) {
+    border-left: 3px solid var(--vf-border);
+    padding-left: 1.25rem;
+    color: var(--vf-text-tertiary);
+    margin: 1.5rem 0;
+  }
+</style>

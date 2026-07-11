@@ -70,17 +70,17 @@ const faqJsonLd = {
       <div class="hero-left">
         <div class="hero-badge">
           <span class="hero-badge-dot"></span>
-v0.3.6 — now on npm
+v0.4.0 — now on npm
         </div>
 
         <h1 class="hero-headline">
-          Browser verification<br />
-          for <span class="hero-accent">AI-generated</span><br />
-          web apps
+          Your coding agent says<br />
+          <span class="hero-accent">"fixed."</span> Verfix checks.
         </h1>
 
         <p class="hero-sub">
-          Agents write UI code. Verfix verifies it works.<br class="hero-sub-break" />
+          Verfix closes the loop: deterministic browser verification for AI coding
+          agents.<br class="hero-sub-break" />
           Local-first, no Docker — structured JSON for agents, a recorded trace for humans.
         </p>
 
@@ -115,8 +115,49 @@ v0.3.6 — now on npm
       </div>
     </section>
 
-    <!-- ── PROBLEM / SOLUTION ────────────────────────────────────────── -->
+    <!-- ── BENCHMARK ────────────────────────────────────────────────── -->
     <section class="page-section">
+      <p class="section-label">Loop closure</p>
+      <h2 class="section-title">Does it actually close the loop? We measure it.</h2>
+      <p class="section-sub">
+        The <a href="https://github.com/verfix-dev/verfix/tree/main/benchmark" target="_blank" rel="noopener noreferrer">loop-closure benchmark</a>:
+        8 deliberately broken tiny apps spanning a failure taxonomy — drifted selectors, an
+        occluding modal, a stale session, changed copy, a broken API, and more. The agent gets
+        <strong> only Verfix's JSON</strong> as its failure signal — no human hints.
+      </p>
+
+      <div class="bm-table">
+        <div class="bm-row bm-row-head">
+          <span>Agent</span><span>Closure rate</span><span>Mean iterations</span>
+        </div>
+        <div class="bm-row">
+          <span>Real coding agent</span>
+          <span class="bm-highlight">6/8 (75%)</span>
+          <span>2</span>
+        </div>
+        <div class="bm-row">
+          <span class="row-dim">Null agent (does nothing)</span>
+          <span class="row-dim">0/8 — enforced in CI</span>
+          <span class="row-dim">—</span>
+        </div>
+        <div class="bm-row">
+          <span class="row-dim">Oracle (known-good fix)</span>
+          <span class="row-dim">8/8 — enforced in CI</span>
+          <span class="row-dim">2</span>
+        </div>
+      </div>
+
+      <p class="section-sub" style="margin-top: 1.75rem; margin-bottom: 0; max-width: 680px;">
+        Anti-cheat invariants mean deleting an assertion doesn't count as closing the loop —
+        both failed cases were the agent getting caught fixing things the wrong way. The
+        benchmark self-tests in CI: a null agent that scores anything but 0% or an oracle that
+        scores anything but 100% fails the build. Results are from v0.4.0, 2026-07-11 —
+        <a href="https://github.com/verfix-dev/verfix/tree/main/benchmark" target="_blank" rel="noopener noreferrer">run it with your own agent</a>.
+      </p>
+    </section>
+
+    <!-- ── PROBLEM / SOLUTION ────────────────────────────────────────── -->
+    <section class="page-section" style="padding-top: 0;">
       <p class="section-label">The problem</p>
       <h2 class="section-title">Stop manually clicking through flows</h2>
       <p class="section-sub">
@@ -191,6 +232,48 @@ v0.3.6 — now on npm
             full Playwright trace for that run — every action, navigation, console error,
             network request, and failure screenshot, replayed exactly.
           </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── WHY NOT RAW PLAYWRIGHT ──────────────────────────────────────── -->
+    <section class="page-section" style="padding-top: 0;">
+      <p class="section-label">The alternative</p>
+      <h2 class="section-title">Why not just let the agent drive a browser?</h2>
+      <p class="section-sub">
+        You can — but an improvised check is the agent grading its own homework with a rubric
+        it rewrites every iteration. Verfix inverts it: a fixed instrument the agent can push
+        against.
+      </p>
+
+      <div class="wnp-table">
+        <div class="wnp-row wnp-row-head">
+          <span></span><span>Agent drives a browser</span><span>Verfix</span>
+        </div>
+        <div class="wnp-row">
+          <span class="wnp-dim">Check between iterations</span>
+          <span class="row-bad">different every time</span>
+          <span class="row-good">byte-identical</span>
+        </div>
+        <div class="wnp-row">
+          <span class="wnp-dim">Failure output</span>
+          <span class="row-bad">prose / screenshots to interpret</span>
+          <span class="row-good">8 typed failure codes + fix_hint</span>
+        </div>
+        <div class="wnp-row">
+          <span class="wnp-dim">Cost per verification</span>
+          <span class="row-bad">LLM tokens, every time</span>
+          <span class="row-good">zero tokens in strict mode</span>
+        </div>
+        <div class="wnp-row">
+          <span class="wnp-dim">Agent edits the measuring stick</span>
+          <span class="row-bad">silent</span>
+          <span class="row-good">flagged (source-guard)</span>
+        </div>
+        <div class="wnp-row">
+          <span class="wnp-dim">Evidence</span>
+          <span class="row-bad">whatever it mentions</span>
+          <span class="row-good">recorded Playwright trace, replay with verfix show</span>
         </div>
       </div>
     </section>
@@ -390,3 +473,82 @@ v0.3.6 — now on npm
     </div>
   </section>
 </MarketingLayout>
+
+<style>
+  /* ── Benchmark table ─────────────────────────────────────────────── */
+  .bm-table {
+    border: 1px solid var(--vf-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .bm-row {
+    display: grid;
+    grid-template-columns: 1fr 10rem 10rem;
+    gap: 1.25rem;
+    align-items: center;
+    padding: 0.9rem 1.25rem;
+    border-bottom: 1px solid var(--vf-border-subtle);
+    font-size: 0.8125rem;
+    color: var(--vf-text-secondary);
+  }
+  .bm-row:last-child { border-bottom: none; }
+  .bm-row-head {
+    background: var(--vf-surface-2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--vf-text-tertiary);
+  }
+  .bm-highlight {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: var(--vf-green);
+  }
+
+  /* ── "Why not raw Playwright" table ──────────────────────────────── */
+  .wnp-table {
+    border: 1px solid var(--vf-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .wnp-row {
+    display: grid;
+    grid-template-columns: 13rem 1fr 1fr;
+    gap: 1.25rem;
+    align-items: center;
+    padding: 0.9rem 1.25rem;
+    border-bottom: 1px solid var(--vf-border-subtle);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78125rem;
+  }
+  .wnp-row:last-child { border-bottom: none; }
+  .wnp-row-head {
+    background: var(--vf-surface-2);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--vf-text-tertiary);
+  }
+  .wnp-dim {
+    color: var(--vf-text);
+    font-family: 'Geist', sans-serif;
+    font-weight: 600;
+    font-size: 0.8125rem;
+  }
+
+  @media (max-width: 768px) {
+    .bm-row {
+      grid-template-columns: 1fr;
+      gap: 0.35rem;
+      align-items: start;
+    }
+    .bm-row-head { display: none; }
+    .wnp-row {
+      grid-template-columns: 1fr;
+      gap: 0.35rem;
+      align-items: start;
+    }
+    .wnp-row-head { display: none; }
+  }
+</style>

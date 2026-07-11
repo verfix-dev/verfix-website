@@ -43,6 +43,7 @@ const {
     href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
   />
   <link rel="sitemap" href="/sitemap-index.xml" />
+  <link rel="alternate" type="application/rss+xml" title="Verfix Blog" href="/rss.xml" />
   <!-- Machine-readable reference for AI agents/assistants — see https://llmstxt.org -->
   <link rel="llms.txt" href="/llms.txt" />
   <script type="application/ld+json" set:html={JSON.stringify({
@@ -53,7 +54,7 @@ const {
     description: 'Local-first browser verification runtime for AI coding agents — the verifier in the agent loop. Agents write the flow, run it, and get structured JSON failure reports with fix hints. No Docker required.',
     applicationCategory: 'DeveloperApplication',
     operatingSystem: 'macOS, Linux, Windows',
-    softwareVersion: '0.3.6',
+    softwareVersion: '0.4.0',
     url: 'https://verfix.dev',
     downloadUrl: 'https://www.npmjs.com/package/verfix',
     installUrl: 'https://www.npmjs.com/package/verfix',
@@ -82,6 +83,7 @@ const {
       <li><a href="/docs">Docs</a></li>
       <li><a href="/cli-reference">CLI</a></li>
       <li><a href="/agent-integration">Agents</a></li>
+      <li><a href="/blog">Blog</a></li>
       <li>
         <a href="https://github.com/verfix-dev/verfix" target="_blank" rel="noopener noreferrer">
           GitHub
@@ -106,6 +108,8 @@ const {
         <a href="https://github.com/verfix-dev/verfix" target="_blank" rel="noopener noreferrer">GitHub</a>
         <a href="https://www.npmjs.com/package/verfix" target="_blank" rel="noopener noreferrer">npm</a>
         <a href="/docs">Docs</a>
+        <a href="/blog">Blog</a>
+        <a href="/rss.xml" target="_blank" rel="noopener noreferrer">RSS</a>
         <a href="/llms.txt" target="_blank" rel="noopener noreferrer">llms.txt</a>
         <a href="/telemetry">Telemetry</a>
         <a href="https://github.com/verfix-dev/verfix/blob/main/LICENSE.md" target="_blank" rel="noopener noreferrer">Apache 2.0</a>
@@ -113,7 +117,7 @@ const {
     </div>
     <div class="footer-bottom">
       <span>verfix</span>
-      <span class="footer-version">v0.3.6</span>
+      <span class="footer-version">v0.4.0</span>
     </div>
   </footer>
 </body>
